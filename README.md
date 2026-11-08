@@ -167,6 +167,28 @@ What Keepsake keeps, all on your machine:
 - Inside your library: `_Albums` (folder albums), `_Vault` (encrypted vaults), `_Duplicates`, `_Undated` and
   `_Logs`.
 
+## Download
+
+Get the latest `Keepsake-<version>-win-x64.zip` from the
+[Releases](https://github.com/verenion/PhotoLibrary/releases) page, unzip it anywhere and run `Keepsake.exe`.
+It's self-contained, so .NET doesn't need to be installed. Each zip has a `.sha256` file beside it to check the
+download.
+
+The app isn't code-signed yet, so Windows SmartScreen may warn the first time: choose *More info › Run anyway*.
+
+## Releasing
+
+Pushing a version tag builds, tests and publishes a release. Nothing else does.
+
+```
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+A tag with a suffix, such as `v0.2.0-beta.1`, becomes a pre-release. Release notes are generated from the
+commits since the previous tag. Every push to `main` and every pull request is also built and tested, but
+documentation-only changes are skipped.
+
 ## Run
 
 Requires Windows 10 or 11 and the .NET 10 SDK.

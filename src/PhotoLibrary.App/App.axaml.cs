@@ -21,6 +21,7 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             _state = new AppState();
+            AppSettings.ApplyTheme(_state.Settings.Theme);
             desktop.MainWindow = new MainWindow
             {
                 DataContext = new MainViewModel(_state),

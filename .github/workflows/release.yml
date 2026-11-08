@@ -1,0 +1,73 @@
+# Publishes a release only when a version tag is pushed, e.g.
+#   git tag v0.1.0 && git push origin v0.1.0
+# A tag with a suffix (v0.2.0-beta.1) becomes a pre-release. Nothing else triggers this workflow.
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write   # needed to create the release and upload the zip
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      TAG: ${{ github.ref_name }}   # passed through env, never spliced into scripts
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Read the version from the tag
+        id: version
+        shell: pwsh
+        run: |
+          $version = $env:TAG.Substring(1)
+          if ($version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') {
+            throw "Tag '$env:TAG' is not a version like v1.2.3 or v1.2.3-beta.1"
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "prerelease=$(if ($version.Contains('-')) { 'true' } else { 'false' })" >> $env:GITHUB_OUTPUT
+
+      - name: Test
+        run: dotnet test PhotoLibrary.slnx -c Release
+
+      - name: Publish (self-contained, so users don't need .NET installed)
+        shell: pwsh
+        run: >
+          dotnet publish src/PhotoLibrary.App -c Release -r win-x64 --self-contained true
+          -p:Version=${{ steps.version.outputs.version }} -o publish
+
+      - name: Package
+        id: package
+        shell: pwsh
+        run: |
+          # Debug symbols and DirectML's debug layer are over half the size and never used by the app.
+          Remove-Item publish/*.pdb, publish/DirectML.Debug.*, publish/*.lib -ErrorAction SilentlyContinue
+          Rename-Item publish/PhotoLibrary.App.exe Keepsake.exe
+          Copy-Item README.md, LICENSE, THIRD_PARTY_NOTICES.md publish/
+          $zip = "Keepsake-${{ steps.version.outputs.version }}-win-x64.zip"
+          Compress-Archive -Path publish/* -DestinationPath $zip -CompressionLevel Optimal
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $zip" | Out-File "$zip.sha256" -Encoding ascii -NoNewline
+          "zip=$zip" >> $env:GITHUB_OUTPUT
+
+      - name: Create the GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZIP: ${{ steps.package.outputs.zip }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+        run: |
+          $releaseArgs = @($env:TAG, $env:ZIP, "$($env:ZIP).sha256", '--title', "Keepsake $env:TAG", '--generate-notes', '--verify-tag')
+          if ($env:PRERELEASE -eq 'true') { $releaseArgs += '--prerelease' }
+          gh release create @releaseArgs

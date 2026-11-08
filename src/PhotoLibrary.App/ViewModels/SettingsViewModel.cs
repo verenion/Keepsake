@@ -46,6 +46,7 @@ public partial class SettingsViewModel : ViewModelBase
         VideoFrameInterval = Settings.VideoFrameInterval;
         ThumbSize = ThumbSizeOptions.FirstOrDefault(o => o.Size == State.Thumbs.Size) ?? ThumbSizeOptions[1];
         ThumbQuality = State.Thumbs.Quality;
+        Theme = ThemeOptions.FirstOrDefault(t => t.Key == Settings.Theme) ?? ThemeOptions[0];
         TileSize = Settings.TileSize;
         foreach (var d in GpuDevices.List()) Gpus.Add(d);
         HasGpu = Gpus.Count > 0;
@@ -279,6 +280,19 @@ public partial class SettingsViewModel : ViewModelBase
         _main.Quality.Apply();
         _main.StatusText = "Cleared quality measurements.";
         await RefreshStorageAsync();
+    }
+
+    // ---- theme
+
+    public sealed record ThemeOption(string Key, string Label);
+
+    public ThemeOption[] ThemeOptions { get; } = [new("system", "Match Windows"), new("light", "Light"), new("dark", "Dark")];
+
+    [ObservableProperty] public partial ThemeOption? Theme { get; set; }
+
+    partial void OnThemeChanged(ThemeOption? value)
+    {
+        if (value is not null && value.Key != Settings.Theme) Settings.Theme = value.Key;
     }
 
     // ---- thumbnail resolution and quality

@@ -21,7 +21,7 @@
             <TextBlock Text="{Binding ResultText}" TextWrapping="Wrap" FontWeight="SemiBold" IsVisible="{Binding ResultText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
             <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding HasPlan}">
                 <CheckBox Content="I've looked at the preview — move the files" IsChecked="{Binding Confirmed}" IsEnabled="{Binding !IsBusy}" />
-                <Button Content="Organise now" Command="{Binding ApplyCommand}" IsEnabled="{Binding CanApply}" Background="#3D8BFF" Foreground="White" />
+                <Button Content="Organise now" Command="{Binding ApplyCommand}" IsEnabled="{Binding CanApply}" Classes="accent" />
             </StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button Content="Cancel" Click="CancelClick" IsVisible="{Binding IsBusy}" />
@@ -43,7 +43,7 @@
         <DockPanel IsVisible="{Binding HasPlan}">
             <TextBlock DockPanel.Dock="Top" Text="{Binding SummaryText}" FontFamily="Consolas, Menlo, monospace" Margin="0,0,0,8" />
             <TextBlock DockPanel.Dock="Top" Text="Showing the first 3,000 of the planned moves; the full list is written to the undo log when you organise." Opacity="0.6" FontSize="12" IsVisible="{Binding PlanTruncated}" Margin="0,0,0,4" />
-            <Border BorderThickness="1" BorderBrush="#30808080" CornerRadius="4">
+            <Border BorderThickness="1" BorderBrush="{DynamicResource KsBorderBrush}" CornerRadius="4">
                 <ScrollViewer>
                     <ItemsControl ItemsSource="{Binding Rows}">
                         <ItemsControl.ItemsPanel>

@@ -40,7 +40,7 @@
                 <ItemsControl ItemsSource="{Binding Similar}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:SimilarItemViewModel">
-                            <Border BorderThickness="1" BorderBrush="#30808080" CornerRadius="6" Padding="8" Margin="0,0,0,6">
+                            <Border BorderThickness="1" BorderBrush="{DynamicResource KsBorderBrush}" CornerRadius="6" Padding="8" Margin="0,0,0,6">
                                 <Grid ColumnDefinitions="Auto,170,*,170,*">
                                     <CheckBox Grid.Column="0" IsChecked="{Binding Selected}" VerticalAlignment="Center" Margin="0,0,10,0" ToolTip.Tip="Import this copy as well" />
                                     <Image Grid.Column="1" Source="{Binding NewThumb}" Width="160" Height="120" Stretch="Uniform" />

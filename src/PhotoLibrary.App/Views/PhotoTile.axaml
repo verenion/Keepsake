@@ -18,8 +18,7 @@
             <MenuItem Header="{Binding Main.DeleteMenuText}" Command="{Binding Main.DeleteSelectedCommand}" />
         </ContextMenu>
     </UserControl.ContextMenu>
-    <Border x:Name="Frame" CornerRadius="6" ClipToBounds="True" Background="#22808080"
-            BorderThickness="3" BorderBrush="Transparent"
+    <Border x:Name="Frame" Classes="tile"
             ToolTip.Tip="{Binding ToolTipText}">
         <Panel>
             <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />

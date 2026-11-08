@@ -19,6 +19,7 @@ public sealed class AppSettings
     private bool _useGpu;
     private int _videoInterval;
     private int _thumbSize, _thumbQuality;
+    private string _theme = "system";
 
     public const int DefaultTileSize = 168;
 
@@ -38,6 +39,7 @@ public sealed class AppSettings
         _gpuDevice = GetInt("ai_gpu_device", 0);
         _videoInterval = Math.Clamp(GetInt("ai_video_interval", 10), 2, 60);
         _thumbSize = GetInt("thumb_size", 384);
+        _theme = _db.GetSetting("theme") is "light" or "dark" ? _db.GetSetting("theme")! : "system";
         _thumbQuality = Math.Clamp(GetInt("thumb_quality", 88), 50, 100);
         ai.VideoFrameInterval = _videoInterval;
         ai.SetModel(_model);
@@ -96,6 +98,24 @@ public sealed class AppSettings
     {
         get => _videoInterval;
         set { _videoInterval = value; _ai.VideoFrameInterval = value; Set("ai_video_interval", value); }
+    }
+
+    /// <summary>"system" (follow Windows), "light" or "dark".</summary>
+    public string Theme
+    {
+        get => _theme;
+        set { _theme = value; _db.SetSetting("theme", value); ApplyTheme(value); }
+    }
+
+    public static void ApplyTheme(string theme)
+    {
+        if (Avalonia.Application.Current is not { } app) return;
+        app.RequestedThemeVariant = theme switch
+        {
+            "light" => Avalonia.Styling.ThemeVariant.Light,
+            "dark" => Avalonia.Styling.ThemeVariant.Dark,
+            _ => Avalonia.Styling.ThemeVariant.Default,
+        };
     }
 
     /// <summary>Short-edge pixels of generated thumbnails. Changing it means rebuilding the cache.</summary>

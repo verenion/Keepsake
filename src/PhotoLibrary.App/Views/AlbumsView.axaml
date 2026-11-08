@@ -7,7 +7,7 @@
     <Grid ColumnDefinitions="280,4,*">
 
         <!-- Album list -->
-        <DockPanel Grid.Column="0">
+        <DockPanel Grid.Column="0" Background="{DynamicResource KsSidebarBrush}">
             <DockPanel DockPanel.Dock="Top" Margin="12,10,8,6">
                 <Button DockPanel.Dock="Right" Content="New album…" Click="NewAlbumClick" IsEnabled="{Binding !IsBusy}" />
                 <TextBlock Text="Albums" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
@@ -18,7 +18,7 @@
                     <DataTemplate x:DataType="vm:AlbumViewModel">
                         <Grid ColumnDefinitions="Auto,Auto,*" Margin="2,3" ToolTip.Tip="{Binding Description}">
                             <Border Grid.Column="0" Width="4" CornerRadius="2" Background="{Binding ColourBrush}" Margin="0,2,8,2" />
-                            <Border Grid.Column="1" Width="44" Height="44" CornerRadius="5" ClipToBounds="True" Background="#22808080" Margin="0,0,10,0">
+                            <Border Grid.Column="1" Width="44" Height="44" CornerRadius="5" ClipToBounds="True" Background="{DynamicResource KsTileBrush}" Margin="0,0,10,0">
                                 <Panel>
                                     <Image Source="{Binding Cover}" Stretch="UniformToFill" />
                                     <views:LockIcon Width="18" Height="18" Opacity="0.6" IsVisible="{Binding IsSecure}" />
@@ -28,10 +28,10 @@
                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <TextBlock Text="{Binding CountText}" FontSize="12" Opacity="0.7" />
-                                    <Border Background="#30808080" CornerRadius="3" Padding="5,0" IsVisible="{Binding IsPhysical}">
+                                    <Border Background="{DynamicResource KsChipBrush}" CornerRadius="3" Padding="5,0" IsVisible="{Binding IsPhysical}">
                                         <TextBlock Text="folder" FontSize="11" Opacity="0.8" />
                                     </Border>
-                                    <Border Background="#30808080" CornerRadius="3" Padding="5,0" IsVisible="{Binding IsSecure}">
+                                    <Border Background="{DynamicResource KsChipBrush}" CornerRadius="3" Padding="5,0" IsVisible="{Binding IsSecure}">
                                         <TextBlock Text="secure" FontSize="11" Opacity="0.8" />
                                     </Border>
                                 </StackPanel>
@@ -42,13 +42,13 @@
             </ListBox>
         </DockPanel>
 
-        <GridSplitter Grid.Column="1" Background="#20808080" />
+        <GridSplitter Grid.Column="1" />
 
         <!-- Selected album -->
         <DockPanel Grid.Column="2">
             <Border DockPanel.Dock="Top" Padding="12,10,12,8" IsVisible="{Binding HasSelectedAlbum}">
                 <Grid ColumnDefinitions="Auto,*,Auto" DataContext="{Binding SelectedAlbum}" x:DataType="vm:AlbumViewModel">
-                    <Border Grid.Column="0" Width="64" Height="64" CornerRadius="8" ClipToBounds="True" Background="#22808080"
+                    <Border Grid.Column="0" Width="64" Height="64" CornerRadius="8" ClipToBounds="True" Background="{DynamicResource KsTileBrush}"
                             BorderThickness="3" BorderBrush="{Binding ColourBrush}" Margin="0,0,12,0">
                         <Panel>
                             <Image Source="{Binding Cover}" Stretch="UniformToFill" />

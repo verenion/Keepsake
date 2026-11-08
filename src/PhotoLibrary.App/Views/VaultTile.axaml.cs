@@ -47,6 +47,5 @@ public partial class VaultTile : UserControl
         if (e.PropertyName == nameof(VaultItemViewModel.IsSelected)) Paint();
     }
 
-    private void Paint() =>
-        Frame.BorderBrush = _bound is { IsSelected: true } ? new SolidColorBrush(Color.Parse("#3D8BFF")) : Brushes.Transparent;
+    private void Paint() => Frame.Classes.Set("selected", _bound is { IsSelected: true });
 }

@@ -16,12 +16,6 @@
             <Setter Property="Opacity" Value="0.7" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
-        <Style Selector="Border.card">
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#30808080" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="16" />
-        </Style>
     </UserControl.Styles>
 
     <ScrollViewer>
@@ -70,6 +64,16 @@
             <Border Classes="card">
                 <StackPanel Spacing="8">
                     <TextBlock Classes="h" Text="Appearance" />
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Left" Text="Theme" Width="160" VerticalAlignment="Center" />
+                        <ComboBox ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding Theme, Mode=TwoWay}" MinWidth="200">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:SettingsViewModel+ThemeOption">
+                                    <TextBlock Text="{Binding Label}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </DockPanel>
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Right" Text="{Binding TileSizeText}" Width="56" TextAlignment="Right" VerticalAlignment="Center" />
                         <TextBlock DockPanel.Dock="Left" Text="Tile size" Width="160" VerticalAlignment="Center" />

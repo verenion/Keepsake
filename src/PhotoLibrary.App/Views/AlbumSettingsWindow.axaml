@@ -46,7 +46,7 @@
                 <Button x:Name="ClearCover" Content="Use first photo" Click="ClearCoverClick" />
                 <TextBlock Classes="hint" Text="Or right-click a photo in the album and choose “Use as album cover”." Width="220" />
             </StackPanel>
-            <Border Width="96" Height="96" CornerRadius="8" ClipToBounds="True" Background="#22808080" HorizontalAlignment="Left">
+            <Border Width="96" Height="96" CornerRadius="8" ClipToBounds="True" Background="{DynamicResource KsTileBrush}" HorizontalAlignment="Left">
                 <Panel>
                     <Image x:Name="CoverImage" Stretch="UniformToFill" />
                     <TextBlock x:Name="CoverText" Text="first photo" FontSize="11" Opacity="0.6" HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -80,10 +80,10 @@
             <TextBox x:Name="NewPasswordBox" PasswordChar="●" Watermark="Password (at least 8 characters)" />
             <TextBox x:Name="ConfirmPasswordBox" PasswordChar="●" Watermark="Type it again" />
         </StackPanel>
-        <Border x:Name="KindWarning" Background="#40E0A000" CornerRadius="4" Padding="10,6" Margin="0,8,0,0" IsVisible="False">
+        <Border x:Name="KindWarning" Background="{DynamicResource KsWarnBrush}" CornerRadius="4" Padding="10,6" Margin="0,8,0,0" IsVisible="False">
             <TextBlock x:Name="KindWarningText" TextWrapping="Wrap" FontSize="12" />
         </Border>
-        <TextBlock x:Name="Error" Foreground="#E5484D" FontSize="12" TextWrapping="Wrap" IsVisible="False" Margin="0,6,0,0" />
+        <TextBlock x:Name="Error" Foreground="{DynamicResource KsErrorBrush}" FontSize="12" TextWrapping="Wrap" IsVisible="False" Margin="0,6,0,0" />
 
         <DockPanel Margin="0,16,0,0">
             <Button x:Name="DeleteButton" DockPanel.Dock="Left" Content="Delete album…" Click="DeleteClick" />

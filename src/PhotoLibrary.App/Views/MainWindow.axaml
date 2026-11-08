@@ -11,34 +11,44 @@
     </Window.KeyBindings>
 
     <DockPanel>
-        <!-- Toolbar -->
-        <Border DockPanel.Dock="Top" Padding="10,8" BorderThickness="0,0,0,1" BorderBrush="#30808080">
+        <!-- App bar: brand, library, actions -->
+        <Border DockPanel.Dock="Top" Classes="appbar">
             <DockPanel>
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
-                    <Button Content="Import folder…" Click="ImportClick" IsEnabled="{Binding !IsBusy}" />
-                    <Button Content="Organise…" Click="OrganiseClick" IsEnabled="{Binding !IsBusy}" />
-                    <Button Content="Rescan" Command="{Binding RescanCommand}" IsEnabled="{Binding !IsBusy}" />
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Button Classes="subtle" Content="Rescan" Command="{Binding RescanCommand}" IsEnabled="{Binding !IsBusy}"
+                            ToolTip.Tip="Look for new, changed and removed files" />
+                    <Button Content="Organise…" Click="OrganiseClick" IsEnabled="{Binding !IsBusy}"
+                            ToolTip.Tip="Preview, then file everything into dated folders" />
+                    <Button Classes="accent" Content="Import folder…" Click="ImportClick" IsEnabled="{Binding !IsBusy}"
+                            ToolTip.Tip="Copy what's missing from another folder into the library" />
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <TextBlock Text="Library:" VerticalAlignment="Center" Opacity="0.7" />
-                    <TextBlock Text="{Binding LibraryRoot}" VerticalAlignment="Center" FontWeight="SemiBold" />
-                    <Button Content="Change…" Click="ChangeLibraryClick" IsEnabled="{Binding !IsBusy}" Padding="8,3" />
-                    <TextBlock Text="{Binding LibrarySummary}" VerticalAlignment="Center" Opacity="0.7" Margin="12,0,0,0" />
-                    <Button Background="#40E0A000" CornerRadius="4" Padding="8,3" IsVisible="{Binding NeedsFfmpeg}" Command="{Binding OpenSettingsCommand}"
+                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <Border Width="30" Height="30" CornerRadius="7" ClipToBounds="True">
+                        <Image Source="/Assets/keepsake-128.png" />
+                    </Border>
+                    <TextBlock Text="Keepsake" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <Border Classes="chip" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="{Binding LibraryRoot}" VerticalAlignment="Center" FontSize="12" MaxWidth="360" TextTrimming="PathSegmentEllipsis" ToolTip.Tip="{Binding LibraryRoot}" />
+                            <Button Classes="subtle" Content="Change…" Click="ChangeLibraryClick" IsEnabled="{Binding !IsBusy}" Padding="6,1" FontSize="12" />
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Text="{Binding LibrarySummary}" Classes="muted" VerticalAlignment="Center" FontSize="12" />
+                    <Button Background="{DynamicResource KsWarnBrush}" Padding="9,3" IsVisible="{Binding NeedsFfmpeg}" Command="{Binding OpenSettingsCommand}"
                             ToolTip.Tip="Video thumbnails and previews are made with ffmpeg. Settings has a one-click download.">
-                        <TextBlock Text="Videos have no previews: ffmpeg is not installed. Set it up…" FontSize="12" />
+                        <TextBlock Text="Videos have no previews: set up ffmpeg…" FontSize="12" />
                     </Button>
-                    <Border Background="#40E0A000" CornerRadius="4" Padding="8,3" IsVisible="{Binding NeedsOrganise}">
-                        <TextBlock Text="Some files are not in dated folders yet — see Organise" FontSize="12" />
+                    <Border Classes="warn" IsVisible="{Binding NeedsOrganise}" VerticalAlignment="Center">
+                        <TextBlock Text="Some files aren't in dated folders yet: see Organise" FontSize="12" />
                     </Border>
                 </StackPanel>
             </DockPanel>
         </Border>
 
         <!-- Status bar -->
-        <Border DockPanel.Dock="Bottom" Padding="10,5" BorderThickness="0,1,0,0" BorderBrush="#30808080">
+        <Border DockPanel.Dock="Bottom" Classes="statusbar">
             <DockPanel>
-                <ProgressBar DockPanel.Dock="Right" Width="220" Height="14" Minimum="0" Maximum="100"
+                <ProgressBar DockPanel.Dock="Right" Width="220" Height="6" CornerRadius="3" Minimum="0" Maximum="100"
                              Value="{Binding ProgressPercent}" IsIndeterminate="{Binding ProgressIndeterminate}"
                              IsVisible="{Binding IsBusy}" Margin="12,0,0,0" />
                 <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis" />
@@ -46,7 +56,7 @@
         </Border>
 
             <!-- Preview pane -->
-            <Border DockPanel.Dock="Right" Width="420" IsVisible="{Binding PreviewVisible}" BorderThickness="1,0,0,0" BorderBrush="#30808080" Padding="10">
+            <Border DockPanel.Dock="Right" Width="420" IsVisible="{Binding PreviewVisible}" BorderThickness="1,0,0,0" Background="{DynamicResource KsSidebarBrush}" BorderBrush="{DynamicResource KsBorderBrush}" Padding="10">
                 <DockPanel>
                     <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
                         <Button DockPanel.Dock="Right" Content="✕" Command="{Binding ClosePreviewCommand}" Padding="6,2" />
@@ -74,7 +84,7 @@
             <TabItem Header="Library">
                 <Grid ColumnDefinitions="240,4,*">
                     <!-- Date tree -->
-                    <TreeView Grid.Column="0" ItemsSource="{Binding Nodes}" SelectedItem="{Binding SelectedNode, Mode=TwoWay}" Margin="4">
+                    <TreeView Grid.Column="0" ItemsSource="{Binding Nodes}" SelectedItem="{Binding SelectedNode, Mode=TwoWay}" Padding="4" Background="{DynamicResource KsSidebarBrush}">
                         <TreeView.ItemTemplate>
                             <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="vm:TreeNodeViewModel">
                                 <TextBlock Text="{Binding Label}" />
@@ -87,7 +97,7 @@
                         </TreeView.Styles>
                     </TreeView>
 
-                    <GridSplitter Grid.Column="1" Background="#20808080" />
+                    <GridSplitter Grid.Column="1" />
 
                     <!-- Thumbnail grid -->
                     <DockPanel Grid.Column="2">

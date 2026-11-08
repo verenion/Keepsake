@@ -123,6 +123,6 @@ public partial class PhotoTile : UserControl
 
     private void UpdateSelection()
     {
-        Frame.BorderBrush = _bound is { IsSelected: true } ? new SolidColorBrush(Color.Parse("#3D8BFF")) : Brushes.Transparent;
+        Frame.Classes.Set("selected", _bound is { IsSelected: true });
     }
 }

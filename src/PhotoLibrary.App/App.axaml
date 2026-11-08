@@ -3,13 +3,57 @@
              x:Class="PhotoLibrary.App.App"
              xmlns:local="using:PhotoLibrary.App"
              RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+    <!-- "Default" follows Windows' light/dark setting; Settings › Appearance can pin Light or Dark. -->
 
     <Application.DataTemplates>
         <local:ViewLocator />
     </Application.DataTemplates>
 
+    <!--
+        Keepsake design tokens. Views use these (never raw colours) so both themes stay consistent:
+        surfaces step from the window region, to sidebars and bars, to cards and tiles.
+    -->
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="KsBarBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="KsSidebarBrush" Color="#FBFAF8" />
+                    <SolidColorBrush x:Key="KsCardBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="KsTileBrush" Color="#ECE8E3" />
+                    <SolidColorBrush x:Key="KsChipBrush" Color="#EFEAE4" />
+                    <SolidColorBrush x:Key="KsBorderBrush" Color="#E4DFD8" />
+                    <SolidColorBrush x:Key="KsHoverBrush" Color="#E8B27A" />
+                    <SolidColorBrush x:Key="KsSelectBrush" Color="#C9600C" />
+                    <SolidColorBrush x:Key="KsMutedBrush" Color="#6F6860" />
+                    <SolidColorBrush x:Key="KsWarnBrush" Color="#33F5A524" />
+                    <SolidColorBrush x:Key="KsErrorBrush" Color="#C8372D" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="KsBarBrush" Color="#0F0F0F" />
+                    <SolidColorBrush x:Key="KsSidebarBrush" Color="#161616" />
+                    <SolidColorBrush x:Key="KsCardBrush" Color="#1C1C1C" />
+                    <SolidColorBrush x:Key="KsTileBrush" Color="#252423" />
+                    <SolidColorBrush x:Key="KsChipBrush" Color="#2A2826" />
+                    <SolidColorBrush x:Key="KsBorderBrush" Color="#2B2927" />
+                    <SolidColorBrush x:Key="KsHoverBrush" Color="#8A5A22" />
+                    <SolidColorBrush x:Key="KsSelectBrush" Color="#F5A524" />
+                    <SolidColorBrush x:Key="KsMutedBrush" Color="#A39C93" />
+                    <SolidColorBrush x:Key="KsWarnBrush" Color="#40F5A524" />
+                    <SolidColorBrush x:Key="KsErrorBrush" Color="#F0705F" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+
     <Application.Styles>
-        <FluentTheme />
+        <FluentTheme>
+            <FluentTheme.Palettes>
+                <!-- Amber from the Keepsake logo; deeper in light mode so white text on accent buttons stays legible. -->
+                <ColorPaletteResources x:Key="Light" Accent="#C9600C" RegionColor="#F6F4F1" />
+                <ColorPaletteResources x:Key="Dark" Accent="#F59E0B" RegionColor="#131313" />
+            </FluentTheme.Palettes>
+        </FluentTheme>
+        <StyleInclude Source="/Styles/Keepsake.axaml" />
     </Application.Styles>
 </Application>

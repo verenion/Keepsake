@@ -1,0 +1,36 @@
+# Build and test on every push to main and every pull request. Never publishes anything.
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', '*.webp', 'LICENSE']   # docs-only changes don't need a Windows build
+  pull_request:
+    paths-ignore: ['**.md', '*.webp', 'LICENSE']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true   # a newer push supersedes a running build
+
+jobs:
+  build:
+    runs-on: windows-latest   # the app uses Windows components (WIC, DirectML), and the tests exercise them
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore PhotoLibrary.slnx
+
+      - name: Build
+        run: dotnet build PhotoLibrary.slnx -c Release --no-restore
+
+      - name: Test
+        run: dotnet test PhotoLibrary.slnx -c Release --no-build

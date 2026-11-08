@@ -5,8 +5,7 @@
              x:Class="PhotoLibrary.App.Views.VaultTile"
              x:DataType="vm:VaultItemViewModel"
              Width="{Binding TileSize}" Height="{Binding TileSize}" Margin="4">
-    <Border x:Name="Frame" CornerRadius="6" ClipToBounds="True" Background="#33808080"
-            BorderThickness="3" BorderBrush="Transparent" ToolTip.Tip="{Binding ToolTipText}">
+    <Border x:Name="Frame" Classes="tile" ToolTip.Tip="{Binding ToolTipText}">
         <Panel>
             <views:LockIcon Width="28" Height="28" Opacity="0.55" />
             <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />

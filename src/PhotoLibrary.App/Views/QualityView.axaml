@@ -6,7 +6,7 @@
              x:DataType="vm:QualityViewModel">
     <DockPanel>
         <!-- Controls -->
-        <Border DockPanel.Dock="Left" Width="320" BorderThickness="0,0,1,0" BorderBrush="#30808080">
+        <Border DockPanel.Dock="Left" Width="320" BorderThickness="0,0,1,0" Background="{DynamicResource KsSidebarBrush}" BorderBrush="{DynamicResource KsBorderBrush}">
             <ScrollViewer>
                 <StackPanel Margin="12" Spacing="18">
                     <StackPanel Spacing="6">
