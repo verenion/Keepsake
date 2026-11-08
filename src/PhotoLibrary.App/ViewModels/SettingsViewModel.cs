@@ -44,6 +44,8 @@ public partial class SettingsViewModel : ViewModelBase
         SearchMaxResults = Settings.SearchMaxResults;
         SimilarMinScore = Settings.SimilarMinScore;
         VideoFrameInterval = Settings.VideoFrameInterval;
+        ThumbSize = ThumbSizeOptions.FirstOrDefault(o => o.Size == State.Thumbs.Size) ?? ThumbSizeOptions[1];
+        ThumbQuality = State.Thumbs.Quality;
         TileSize = Settings.TileSize;
         foreach (var d in GpuDevices.List()) Gpus.Add(d);
         HasGpu = Gpus.Count > 0;
@@ -176,7 +178,11 @@ public partial class SettingsViewModel : ViewModelBase
 
     // ---- storage
 
-    public sealed record StorageLine(string Label, string Value, string Detail);
+    /// <summary>A row in the storage card; <paramref name="Action"/> is its button (Clear / Delete), if any.</summary>
+    public sealed record StorageLine(string Label, string Value, string Detail, string? ActionText = null, IAsyncRelayCommand? Action = null, string? ActionTip = null)
+    {
+        public bool HasAction => Action is not null;
+    }
 
     public ObservableCollection<StorageLine> Storage { get; } = [];
     [ObservableProperty] public partial bool StorageBusy { get; set; }
@@ -190,15 +196,29 @@ public partial class SettingsViewModel : ViewModelBase
             var s = await Task.Run(Ai.Storage);
             Storage.Clear();
             Storage.Add(new StorageLine("Library database", Formatting.Bytes(s.DatabaseBytes), $"{s.LibraryItems:N0} items in the library"));
-            Storage.Add(new StorageLine("Thumbnail cache", Formatting.Bytes(s.ThumbnailBytes), $"{s.ThumbnailCount:N0} thumbnails"));
-            Storage.Add(new StorageLine("Model downloads", Formatting.Bytes(s.ModelBytes), $"{Models.Count(m => m.Installed)} of {Models.Count} models installed"));
+            Storage.Add(new StorageLine("Thumbnail cache", Formatting.Bytes(s.ThumbnailBytes), $"{s.ThumbnailCount:N0} thumbnails",
+                "Clear", new AsyncRelayCommand(ClearThumbnailsAsync), "Delete every cached thumbnail; they are rebuilt as photos come into view."));
+            foreach (var m in Models.Where(m => m.Installed))
+            {
+                var dir = new ClipModelFiles(m.Spec).Dir;
+                var bytes = Directory.Exists(dir) ? new DirectoryInfo(dir).EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length) : 0;
+                var active = m.Spec.Id == Settings.Model.Id;
+                var spec = m.Spec;
+                Storage.Add(active
+                    ? new StorageLine($"Model: {m.Name}  (in use)", Formatting.Bytes(bytes), "switch to another model to delete this one")
+                    : new StorageLine($"Model: {m.Name}", Formatting.Bytes(bytes), "downloaded", "Delete", new AsyncRelayCommand(() => DeleteModelAsync(spec)),
+                        "Delete the downloaded model files. Its index is kept unless you delete that too."));
+            }
             foreach (var ix in s.Indexes)
             {
                 var name = ClipModelCatalog.Find(ix.Model)?.DisplayName ?? ix.Model;
                 var inUse = ix.Model == Settings.Model.Id ? "  (in use)" : "";
-                Storage.Add(new StorageLine($"AI index: {name}{inUse}", Formatting.Bytes(ix.VectorBytes), $"{ix.Items:N0} photos  ·  {ix.Dimension}-d vectors  ·  {ix.Tags:N0} tags"));
+                var modelId = ix.Model;
+                Storage.Add(new StorageLine($"AI index: {name}{inUse}", Formatting.Bytes(ix.VectorBytes), $"{ix.Items:N0} photos  ·  {ix.Dimension}-d vectors  ·  {ix.Tags:N0} tags",
+                    "Delete", new AsyncRelayCommand(() => DeleteIndexAsync(modelId, name)), "Delete this model's vectors, tags and video frames."));
             }
-            Storage.Add(new StorageLine("Quality measurements", $"{s.QualityMeasured:N0} photos", "brightness, contrast and sharpness per photo"));
+            Storage.Add(new StorageLine("Quality measurements", $"{s.QualityMeasured:N0} photos", "brightness, contrast and sharpness per photo",
+                s.QualityMeasured > 0 ? "Clear" : null, s.QualityMeasured > 0 ? new AsyncRelayCommand(ClearQualityAsync) : null, "Forget the measurements; the Quality tab measures again."));
         }
         finally
         {
@@ -208,6 +228,115 @@ public partial class SettingsViewModel : ViewModelBase
 
     [RelayCommand]
     private Task RefreshStorage() => RefreshStorageAsync();
+
+    private async Task<bool> AskAsync(string title, string message, string confirm) =>
+        _main.Confirm is not null && await _main.Confirm(title, message, confirm);
+
+    private async Task ClearThumbnailsAsync()
+    {
+        if (!await AskAsync("Clear the thumbnail cache?", "Every cached thumbnail is deleted. They are rebuilt as photos come into view, which is slower for a while. Your photos are not touched.", "Clear cache")) return;
+        var n = await Task.Run(State.Thumbs.Clear);
+        Ai.ForgetUndecodable();
+        _main.ReloadGroups();
+        _main.StatusText = $"Cleared {n:N0} cached thumbnails.";
+        await RefreshStorageAsync();
+    }
+
+    private async Task DeleteModelAsync(ClipModelSpec spec)
+    {
+        if (spec.Id == Settings.Model.Id) return;
+        if (!await AskAsync($"Delete {spec.DisplayName}?", "The downloaded model files are deleted. Its index stays unless you delete that too, so downloading the model again later needs no re-indexing.", "Delete model")) return;
+        try
+        {
+            new ClipModelFiles(spec).Delete();
+            _main.StatusText = $"Deleted {spec.DisplayName}.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { _main.StatusText = "Could not delete the model: " + ex.Message; }
+        RefreshModels();
+        NotifyModelCommands();
+        await RefreshStorageAsync();
+    }
+
+    private async Task DeleteIndexAsync(string modelId, string name)
+    {
+        var active = modelId == Settings.Model.Id;
+        var message = active
+            ? $"Every vector, tag and video frame made by {name} is deleted. This is the model in use: search, “find similar”, tags, events and similar-photo duplicates stop working until you index the library again."
+            : $"Every vector, tag and video frame made by {name} is deleted. Switching back to that model later means indexing again.";
+        if (!await AskAsync($"Delete the {name} index?", message, "Delete index")) return;
+        await Task.Run(() => Ai.DeleteIndex(modelId));
+        _main.StatusText = $"Deleted the {name} index.";
+        RefreshModels();
+        _main.Ai.Refresh();
+        await RefreshStorageAsync();
+    }
+
+    private async Task ClearQualityAsync()
+    {
+        if (!await AskAsync("Clear quality measurements?", "Brightness, contrast and sharpness are forgotten for every photo. The Quality tab measures them again when you ask.", "Clear")) return;
+        await Task.Run(Ai.ClearQuality);
+        _main.Quality.RefreshStatus();
+        _main.Quality.Apply();
+        _main.StatusText = "Cleared quality measurements.";
+        await RefreshStorageAsync();
+    }
+
+    // ---- thumbnail resolution and quality
+
+    public sealed record ThumbSizeOption(int Size, string Label);
+
+    public ThumbSizeOption[] ThumbSizeOptions { get; } =
+    [
+        new(256, "Small (256 px)  ·  smallest cache, soft on large tiles"),
+        new(384, "Standard (384 px)  ·  sharp at the default tile size"),
+        new(512, "Sharp (512 px)  ·  for large tiles or high-DPI screens"),
+        new(768, "Very sharp (768 px)  ·  largest cache"),
+    ];
+
+    [ObservableProperty] public partial ThumbSizeOption? ThumbSize { get; set; }
+    [ObservableProperty] public partial int ThumbQuality { get; set; }
+
+    public string ThumbQualityText => $"{ThumbQuality}";
+    public bool ThumbSettingsChanged => ThumbSize?.Size != State.Thumbs.Size || ThumbQuality != State.Thumbs.Quality;
+    public string ThumbHint
+    {
+        get
+        {
+            // Rough average JPEG size for a 3:2 thumbnail at this size and quality, for a cache estimate.
+            var size = ThumbSize?.Size ?? 384;
+            var bytesPerPixel = 0.12 + (ThumbQuality - 50) * 0.006;
+            var per = size * size * 1.5 * bytesPerPixel;
+            var total = per * Math.Max(1, State.Library.Count);
+            return $"About {Formatting.Bytes((long)per)} per thumbnail, roughly {Formatting.Bytes((long)total)} for {State.Library.Count:N0} items. " +
+                   "Measured on the short edge, because tiles are square and crop to fill.";
+        }
+    }
+
+    partial void OnThumbSizeChanged(ThumbSizeOption? value) => ThumbChanged();
+    partial void OnThumbQualityChanged(int value) => ThumbChanged();
+
+    private void ThumbChanged()
+    {
+        OnPropertyChanged(nameof(ThumbQualityText));
+        OnPropertyChanged(nameof(ThumbSettingsChanged));
+        OnPropertyChanged(nameof(ThumbHint));
+        ApplyThumbnailSettingsCommand.NotifyCanExecuteChanged();
+    }
+
+    [RelayCommand(CanExecute = nameof(ThumbSettingsChanged))]
+    private async Task ApplyThumbnailSettingsAsync()
+    {
+        if (ThumbSize is not { } size) return;
+        Settings.ThumbnailSize = State.Thumbs.Size = size.Size;
+        Settings.ThumbnailQuality = State.Thumbs.Quality = ThumbQuality;
+        ThumbChanged();
+        _main.StatusText = "Rebuilding thumbnails…";
+        var n = await Task.Run(State.Thumbs.Clear);
+        Ai.ForgetUndecodable();
+        _main.ReloadGroups();
+        _main.StatusText = $"Thumbnail settings saved. {n:N0} old thumbnails were cleared; new ones are made as photos come into view.";
+        await RefreshStorageAsync();
+    }
 
     // ---- models
 

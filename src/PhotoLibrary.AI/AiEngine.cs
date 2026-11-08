@@ -428,6 +428,9 @@ public sealed partial class AiEngine(LibraryDb db, ThumbnailService thumbs) : ID
         return new StorageReport(dbBytes, thumbCount, thumbBytes, modelBytes, db.IndexStats(), db.CountQuality(QualityAnalyzer.Version), (int)db.Count("in_library=1"));
     }
 
+    /// <summary>Drops every quality measurement; the Quality tab measures again from scratch.</summary>
+    public void ClearQuality() => db.Exec("DELETE FROM ai_quality");
+
     public void DeleteIndex(string modelId)
     {
         db.DeleteIndex(modelId);

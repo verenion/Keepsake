@@ -4,8 +4,8 @@
         xmlns:views="using:PhotoLibrary.App.Views"
         x:Class="PhotoLibrary.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
-        Icon="/Assets/avalonia-logo.ico"
-        Title="Photo Library" Width="1280" Height="800" MinWidth="900" MinHeight="500">
+        Icon="/Assets/keepsake.ico"
+        Title="Keepsake" Width="1280" Height="800" MinWidth="900" MinHeight="500">
     <Window.KeyBindings>
         <KeyBinding Gesture="Delete" Command="{Binding RemoveSelectedCommand}" />
     </Window.KeyBindings>

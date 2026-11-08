@@ -8,12 +8,13 @@ namespace PhotoLibrary.App.Services;
 public static class BitmapLoader
 {
     /// <summary>Loads a cached thumbnail file as an Avalonia bitmap (off the UI thread).</summary>
-    public static Task<Bitmap?> FromFileAsync(string path, int width, CancellationToken ct) => Task.Run(() =>
+    /// <param name="width">Decode to this width, or null for the file's own size.</param>
+    public static Task<Bitmap?> FromFileAsync(string path, int? width, CancellationToken ct) => Task.Run(() =>
     {
         try
         {
             using var fs = File.OpenRead(path);
-            return (Bitmap?)Bitmap.DecodeToWidth(fs, width);
+            return width is { } w ? (Bitmap?)Bitmap.DecodeToWidth(fs, w) : new Bitmap(fs);
         }
         catch (Exception ex) when (ex is IOException or ArgumentException or InvalidOperationException)
         {

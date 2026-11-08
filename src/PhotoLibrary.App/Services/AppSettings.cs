@@ -18,6 +18,7 @@ public sealed class AppSettings
     private int _searchMaxResults, _tileSize, _gpuDevice;
     private bool _useGpu;
     private int _videoInterval;
+    private int _thumbSize, _thumbQuality;
 
     public const int DefaultTileSize = 168;
 
@@ -36,6 +37,8 @@ public sealed class AppSettings
         _useGpu = _db.GetSetting("ai_use_gpu") == "1";
         _gpuDevice = GetInt("ai_gpu_device", 0);
         _videoInterval = Math.Clamp(GetInt("ai_video_interval", 10), 2, 60);
+        _thumbSize = GetInt("thumb_size", 384);
+        _thumbQuality = Math.Clamp(GetInt("thumb_quality", 88), 50, 100);
         ai.VideoFrameInterval = _videoInterval;
         ai.SetModel(_model);
         ai.SetRuntime(new ClipRuntime(_useGpu, _gpuDevice));
@@ -93,6 +96,20 @@ public sealed class AppSettings
     {
         get => _videoInterval;
         set { _videoInterval = value; _ai.VideoFrameInterval = value; Set("ai_video_interval", value); }
+    }
+
+    /// <summary>Short-edge pixels of generated thumbnails. Changing it means rebuilding the cache.</summary>
+    public int ThumbnailSize
+    {
+        get => _thumbSize;
+        set { _thumbSize = value; Set("thumb_size", value); }
+    }
+
+    /// <summary>JPEG quality of generated thumbnails.</summary>
+    public int ThumbnailQuality
+    {
+        get => _thumbQuality;
+        set { _thumbQuality = value; Set("thumb_quality", value); }
     }
 
     /// <summary>Edge length of a thumbnail tile in the grids, in pixels.</summary>

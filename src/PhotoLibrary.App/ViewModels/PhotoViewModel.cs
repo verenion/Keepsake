@@ -80,7 +80,7 @@ public partial class PhotoViewModel(MediaRecord record, MainViewModel main, Acti
             var path = await Main.State.Thumbs.GetAsync(Record, cts.Token);
             if (cts.IsCancellationRequested) return;
             if (path is null) { OnPropertyChanged(nameof(FailedText)); ThumbnailFailed = true; return; }
-            var bmp = await BitmapLoader.FromFileAsync(path, 320, cts.Token);
+            var bmp = await BitmapLoader.FromFileAsync(path, null, cts.Token);
             if (cts.IsCancellationRequested) { bmp?.Dispose(); return; }
             if (bmp is null) ThumbnailFailed = true;
             else Thumbnail = bmp;

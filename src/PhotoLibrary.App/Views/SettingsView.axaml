@@ -52,10 +52,12 @@
                     <ItemsControl ItemsSource="{Binding Storage}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:SettingsViewModel+StorageLine">
-                                <Grid ColumnDefinitions="260,110,*" Margin="0,3">
-                                    <TextBlock Grid.Column="0" Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Grid.Column="1" Text="{Binding Value}" FontWeight="SemiBold" TextAlignment="Right" Margin="0,0,16,0" />
+                                <Grid ColumnDefinitions="260,110,*,Auto" Margin="0,3">
+                                    <TextBlock Grid.Column="0" Text="{Binding Label}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Value}" FontWeight="SemiBold" TextAlignment="Right" Margin="0,0,16,0" VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="2" Text="{Binding Detail}" Opacity="0.7" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    <Button Grid.Column="3" Content="{Binding ActionText}" Command="{Binding Action}" IsVisible="{Binding HasAction}"
+                                            ToolTip.Tip="{Binding ActionTip}" FontSize="12" Padding="10,3" Margin="8,0,0,0" />
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -70,9 +72,26 @@
                     <TextBlock Classes="h" Text="Appearance" />
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Right" Text="{Binding TileSizeText}" Width="56" TextAlignment="Right" VerticalAlignment="Center" />
-                        <TextBlock DockPanel.Dock="Left" Text="Thumbnail size" Width="160" VerticalAlignment="Center" />
+                        <TextBlock DockPanel.Dock="Left" Text="Tile size" Width="160" VerticalAlignment="Center" />
                         <Slider Minimum="100" Maximum="260" TickFrequency="20" IsSnapToTickEnabled="True" Value="{Binding TileSize}" />
                     </DockPanel>
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Left" Text="Thumbnail resolution" Width="160" VerticalAlignment="Center" />
+                        <ComboBox ItemsSource="{Binding ThumbSizeOptions}" SelectedItem="{Binding ThumbSize, Mode=TwoWay}" HorizontalAlignment="Stretch">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:SettingsViewModel+ThumbSizeOption">
+                                    <TextBlock Text="{Binding Label}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </DockPanel>
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding ThumbQualityText}" Width="56" TextAlignment="Right" VerticalAlignment="Center" />
+                        <TextBlock DockPanel.Dock="Left" Text="Thumbnail quality" Width="160" VerticalAlignment="Center" />
+                        <Slider Minimum="60" Maximum="98" TickFrequency="2" IsSnapToTickEnabled="True" Value="{Binding ThumbQuality}" />
+                    </DockPanel>
+                    <TextBlock Classes="hint" Text="{Binding ThumbHint}" />
+                    <Button Content="Apply and rebuild thumbnails" Command="{Binding ApplyThumbnailSettingsCommand}" HorizontalAlignment="Left" />
                 </StackPanel>
             </Border>
 

@@ -62,6 +62,16 @@ public sealed class AppState : IDisposable
             Db.SetSetting("psd_v1", "1");
         }
         Settings = new AppSettings(Db, Ai);
+        Thumbs.Size = Settings.ThumbnailSize;
+        Thumbs.Quality = Settings.ThumbnailQuality;
+        if (Db.GetSetting("thumbs_v2") != "1")
+        {
+            // Thumbnails are now sized by their short edge (and tiles no longer shrink them on load); rebuild
+            // the old long-edge cache lazily. Deleting runs in the background so startup isn't held up.
+            var thumbs = Thumbs;
+            Task.Run(() => thumbs.Clear());
+            Db.SetSetting("thumbs_v2", "1");
+        }
         LibraryRoot = Db.GetSetting("library_root") ?? AppPaths.DefaultLibraryRoot();
         Albums = new AlbumService(Db, LibraryRoot);
     }

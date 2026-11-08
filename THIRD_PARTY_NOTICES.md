@@ -1,8 +1,8 @@
 # Third-party notices
 
-Photo Library is MIT licensed (see [LICENSE](LICENSE)). It builds on the packages below, pulled from NuGet at
+Keepsake is MIT licensed (see [LICENSE](LICENSE)). It builds on the packages below, pulled from NuGet at
 build time, and can download a few things at runtime when you ask it to. Nothing third-party is vendored into
-this repository apart from the Avalonia template icon.
+this repository.
 
 ## NuGet packages
 
@@ -19,8 +19,6 @@ this repository apart from the Avalonia template icon.
 | xunit, xunit.runner.visualstudio | Apache-2.0 | Tests |
 | Microsoft.NET.Test.Sdk, coverlet.collector | MIT | Tests |
 
-`src/PhotoLibrary.App/Assets/avalonia-logo.ico` comes from the Avalonia project template (MIT).
-
 ## Downloaded at runtime (never redistributed by this repository)
 
 - **CLIP model weights**: ONNX exports published on Hugging Face under `Xenova/clip-vit-base-patch32`,
@@ -29,7 +27,7 @@ this repository apart from the Avalonia template icon.
   explicit tag and inherit OpenAI's terms. The tokenizer files (`vocab.json`, `merges.txt`) come from the same
   repositories.
 - **ffmpeg**: the static Windows build from [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds), which is
-  GPL-2.0-or-later. Photo Library runs it as a separate process and does not link against it, so the GPL does not
+  GPL-2.0-or-later. Keepsake runs it as a separate process and does not link against it, so the GPL does not
   extend to this code. The binary is stored in the app's data folder, not in this repository.
 
 ## Windows components used when present

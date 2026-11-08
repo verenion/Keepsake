@@ -10,7 +10,44 @@ namespace PhotoLibrary.Core.Thumbnails;
 /// </summary>
 public sealed class ThumbnailService(string cacheDir)
 {
-    public const int Edge = 320;
+    /// <summary>
+    /// Target length of the thumbnail's SHORT edge, in pixels. Tiles are square and crop to fill, so the short edge
+    /// is what ends up spanning the tile; sizing by the long edge left landscape shots soft.
+    /// </summary>
+    public int Size { get; set; } = 384;
+
+    /// <summary>JPEG quality of cached thumbnails (1-100).</summary>
+    public int Quality { get; set; } = 88;
+
+    public static readonly int[] SizeChoices = [256, 384, 512, 768];
+
+    /// <summary>The long-edge limit that gives <see cref="Size"/> on the short edge (panoramas capped at 3:1).</summary>
+    public int LongEdgeFor(MediaRecord r)
+    {
+        if (r.Width is { } w and > 0 && r.Height is { } h and > 0)
+        {
+            var ratio = Math.Min(3.0, (double)Math.Max(w, h) / Math.Min(w, h));
+            return (int)Math.Ceiling(Size * ratio);
+        }
+        return (int)Math.Ceiling(Size * 1.5); // unknown shape: assume 3:2
+    }
+
+    /// <summary>Deletes every cached thumbnail and failure marker; they are rebuilt as they are needed.</summary>
+    public int Clear()
+    {
+        var n = 0;
+        if (!Directory.Exists(CacheDir)) return 0;
+        foreach (var dir in Directory.EnumerateDirectories(CacheDir))
+        {
+            try
+            {
+                n += Directory.EnumerateFiles(dir).Count();
+                Directory.Delete(dir, recursive: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
+        return n;
+    }
 
     private readonly SemaphoreSlim _decodeGate = new(Math.Clamp(Environment.ProcessorCount - 1, 2, 6));
 
@@ -43,19 +80,19 @@ public sealed class ThumbnailService(string cacheDir)
         }
     }
 
-    private static string? Generate(MediaRecord r, string dest, string failedMarker)
+    private string? Generate(MediaRecord r, string dest, string failedMarker)
     {
         // Without ffmpeg a video can't be decoded at all. That is a missing tool, not a bad file, so no failure
         // marker: the thumbnail is attempted again as soon as ffmpeg is installed.
         if (r.Kind == MediaKind.Video && !ImageDecoder.FfmpegAvailable) return null;
         Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
-        using var bmp = ImageDecoder.Decode(r.Path, Edge, r.Kind);
+        using var bmp = ImageDecoder.Decode(r.Path, LongEdgeFor(r), r.Kind);
         if (bmp is null)
         {
             try { File.WriteAllBytes(failedMarker, []); } catch (IOException) { }
             return null;
         }
-        using var data = bmp.Encode(SKEncodedImageFormat.Jpeg, 82);
+        using var data = bmp.Encode(SKEncodedImageFormat.Jpeg, Math.Clamp(Quality, 1, 100));
         if (data is null) return null;
         var tmp = dest + "." + Environment.CurrentManagedThreadId + ".tmp";
         using (var fs = File.Create(tmp)) data.SaveTo(fs);
