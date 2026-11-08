@@ -1,0 +1,106 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PhotoLibrary.App.ViewModels"
+             xmlns:views="using:PhotoLibrary.App.Views"
+             x:Class="PhotoLibrary.App.Views.AiPanelView"
+             x:DataType="vm:AiPanelViewModel">
+
+    <DockPanel>
+        <!-- Controls column -->
+        <Border DockPanel.Dock="Left" Width="320" BorderThickness="0,0,1,0" BorderBrush="#30808080">
+            <ScrollViewer>
+                <StackPanel Margin="12" Spacing="18">
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Model" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding ModelStatus}" TextWrapping="Wrap" FontSize="12" Opacity="0.8" />
+                        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !ModelInstalled}">
+                            <Button Content="Download model" Command="{Binding DownloadModelCommand}" IsVisible="{Binding !IsDownloading}" />
+                            <Button Content="Cancel" Command="{Binding CancelDownloadCommand}" IsVisible="{Binding IsDownloading}" />
+                        </StackPanel>
+                        <ProgressBar Minimum="0" Maximum="100" Value="{Binding DownloadPercent}" Height="6" IsVisible="{Binding IsDownloading}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="6" IsVisible="{Binding ModelInstalled}">
+                        <TextBlock Text="Index" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding IndexStatus}" TextWrapping="Wrap" FontSize="12" Opacity="0.8" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Index new photos" Command="{Binding IndexLibraryCommand}" IsVisible="{Binding !IsIndexing}" />
+                            <Button Content="Stop" Command="{Binding CancelIndexCommand}" IsVisible="{Binding IsIndexing}" />
+                        </StackPanel>
+                        <ProgressBar Minimum="0" Maximum="100" Value="{Binding IndexPercent}" Height="6" IsVisible="{Binding IsIndexing}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="6" IsVisible="{Binding ModelInstalled}">
+                        <TextBlock Text="Search" FontWeight="SemiBold" />
+                        <TextBox Text="{Binding Query}" PlaceholderText="e.g. kids on the beach, christmas 2019, red car">
+                            <TextBox.KeyBindings>
+                                <KeyBinding Gesture="Enter" Command="{Binding SearchCommand}" />
+                            </TextBox.KeyBindings>
+                        </TextBox>
+                        <Button Content="Search" Command="{Binding SearchCommand}" HorizontalAlignment="Left" />
+                        <TextBlock Text="{Binding SelectedName}" FontSize="12" Opacity="0.7" TextTrimming="CharacterEllipsis" Margin="0,6,0,0" />
+                        <TextBlock Text="{Binding SelectedTags}" FontSize="12" Opacity="0.7" TextWrapping="Wrap" />
+                        <Button Content="Find photos like the selected one" Command="{Binding FindSimilarCommand}" HorizontalAlignment="Left" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="6" IsVisible="{Binding HasTags}">
+                        <TextBlock Text="Tags" FontWeight="SemiBold" />
+                        <ItemsControl ItemsSource="{Binding Tags}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:TagChip">
+                                    <Button Content="{Binding Label}" FontSize="12" Padding="8,3" Margin="0,0,4,4" CornerRadius="10"
+                                            Command="{Binding Search}" CommandParameter="{Binding Tag}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Events" FontWeight="SemiBold" />
+                        <TextBlock Text="Groups dated photos by time, place and how they look." TextWrapping="Wrap" FontSize="12" Opacity="0.8" />
+                        <Button Content="Group library into events" Command="{Binding BuildEventsCommand}" HorizontalAlignment="Left" />
+                        <ListBox ItemsSource="{Binding Events}" SelectedItem="{Binding SelectedEvent, Mode=TwoWay}" MaxHeight="420" IsVisible="{Binding HasEvents}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:EventItem">
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding CountText}" FontSize="11" Opacity="0.6" Margin="8,0,0,0" />
+                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
+
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Results -->
+        <DockPanel>
+            <DockPanel DockPanel.Dock="Top" Margin="12,10,12,6">
+                <ProgressBar DockPanel.Dock="Right" IsIndeterminate="True" Width="120" Height="6" IsVisible="{Binding IsBusy}" />
+                <TextBlock Text="{Binding ResultsHeader}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+            </DockPanel>
+            <ScrollViewer>
+                <ItemsControl ItemsSource="{Binding Results}" Margin="8,0,8,12">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:PhotoViewModel">
+                            <views:PhotoTile />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </DockPanel>
+    </DockPanel>
+</UserControl>

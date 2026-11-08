@@ -1,0 +1,14 @@
+<Project>
+  <!-- Keep bin/obj out of the source tree (which may live in a synced folder): builds churn thousands of files that don't need syncing. -->
+  <PropertyGroup>
+    <_BuildRoot>$([System.IO.Path]::Combine($([System.Environment]::GetFolderPath(SpecialFolder.LocalApplicationData)), 'PhotoLibraryBuild'))</_BuildRoot>
+    <BaseOutputPath>$(_BuildRoot)\$(MSBuildProjectName)\bin\</BaseOutputPath>
+    <BaseIntermediateOutputPath>$(_BuildRoot)\$(MSBuildProjectName)\obj\</BaseIntermediateOutputPath>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <!-- x64 only: the DirectML redistributable (GPU inference) is only copied to the output for an explicit platform target. -->
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+</Project>

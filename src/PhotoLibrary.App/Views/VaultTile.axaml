@@ -1,0 +1,20 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PhotoLibrary.App.ViewModels"
+             xmlns:views="using:PhotoLibrary.App.Views"
+             x:Class="PhotoLibrary.App.Views.VaultTile"
+             x:DataType="vm:VaultItemViewModel"
+             Width="{Binding TileSize}" Height="{Binding TileSize}" Margin="4">
+    <Border x:Name="Frame" CornerRadius="6" ClipToBounds="True" Background="#33808080"
+            BorderThickness="3" BorderBrush="Transparent" ToolTip.Tip="{Binding ToolTipText}">
+        <Panel>
+            <views:LockIcon Width="28" Height="28" Opacity="0.55" />
+            <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />
+            <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="6"
+                    Background="#A0000000" CornerRadius="3" Padding="5,1"
+                    IsVisible="{Binding Badge, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                <TextBlock Text="{Binding Badge}" Foreground="White" FontSize="11" />
+            </Border>
+        </Panel>
+    </Border>
+</UserControl>

@@ -1,0 +1,65 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PhotoLibrary.App.ViewModels"
+             xmlns:views="using:PhotoLibrary.App.Views"
+             x:Class="PhotoLibrary.App.Views.QualityView"
+             x:DataType="vm:QualityViewModel">
+    <DockPanel>
+        <!-- Controls -->
+        <Border DockPanel.Dock="Left" Width="320" BorderThickness="0,0,1,0" BorderBrush="#30808080">
+            <ScrollViewer>
+                <StackPanel Margin="12" Spacing="18">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Measurements" FontWeight="SemiBold" />
+                        <TextBlock Text="Each photo is measured once for brightness, contrast and sharpness. No model needed." TextWrapping="Wrap" FontSize="12" Opacity="0.8" />
+                        <TextBlock Text="{Binding MeasureStatus}" TextWrapping="Wrap" FontSize="12" Opacity="0.8" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Measure new photos" Command="{Binding MeasureCommand}" IsVisible="{Binding !IsMeasuring}" />
+                            <Button Content="Stop" Command="{Binding CancelMeasureCommand}" IsVisible="{Binding IsMeasuring}" />
+                        </StackPanel>
+                        <ProgressBar Minimum="0" Maximum="100" Value="{Binding MeasurePercent}" Height="6" IsVisible="{Binding IsMeasuring}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="6" IsVisible="{Binding HasMeasurements}">
+                        <TextBlock Text="Strictness" FontWeight="SemiBold" />
+                        <Slider Minimum="0" Maximum="1" TickFrequency="0.05" IsSnapToTickEnabled="True" Value="{Binding Strictness}" />
+                        <TextBlock Text="{Binding StrictnessText}" TextWrapping="Wrap" FontSize="12" Opacity="0.8" />
+                        <TextBlock Text="Night shots, long exposures and screenshots can score as poor. The reason is shown under each photo; untick the ones you want." TextWrapping="Wrap" FontSize="11" Opacity="0.7" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="6" IsVisible="{Binding HasMeasurements}">
+                        <TextBlock Text="Ticked for removal" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding MarkedText}" FontSize="12" Opacity="0.8" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Tick all shown" Command="{Binding MarkAllCommand}" FontSize="12" />
+                            <Button Content="Clear ticks" Command="{Binding ClearMarksCommand}" FontSize="12" />
+                        </StackPanel>
+                        <Button Content="Remove ticked from library" Command="{Binding RemoveMarkedCommand}" HorizontalAlignment="Stretch" />
+                        <TextBlock Text="Hidden from the library and never re-imported; the files stay on disk. Undo from Settings." TextWrapping="Wrap" FontSize="11" Opacity="0.7" />
+                        <Button Content="Delete ticked from disk…" Command="{Binding DeleteMarkedCommand}" HorizontalAlignment="Stretch" />
+                        <TextBlock Text="Sends the files to the Recycle Bin after confirmation." TextWrapping="Wrap" FontSize="11" Opacity="0.7" />
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Results -->
+        <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Text="{Binding Summary}" FontSize="16" FontWeight="SemiBold" Margin="12,10,12,6" />
+            <ScrollViewer>
+                <ItemsControl ItemsSource="{Binding Items}" Margin="8,0,8,12">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ReviewItemViewModel">
+                            <views:ReviewTile />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </DockPanel>
+    </DockPanel>
+</UserControl>

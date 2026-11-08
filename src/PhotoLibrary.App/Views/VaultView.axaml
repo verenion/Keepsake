@@ -1,0 +1,89 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PhotoLibrary.App.ViewModels"
+             xmlns:views="using:PhotoLibrary.App.Views"
+             x:Class="PhotoLibrary.App.Views.VaultView"
+             x:DataType="vm:VaultViewModel">
+    <DockPanel>
+        <!-- Status line and Lock -->
+        <DockPanel DockPanel.Dock="Top" Margin="12,0,12,8">
+            <Button DockPanel.Dock="Right" Content="Lock now" Command="{Binding LockCommand}" IsVisible="{Binding !IsLocked}" />
+            <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Opacity="0.75" FontSize="12" VerticalAlignment="Center" />
+        </DockPanel>
+
+        <!-- Unlock -->
+        <Border DockPanel.Dock="Top" IsVisible="{Binding IsLocked}" Margin="12,0,12,12" Padding="16" CornerRadius="8"
+                BorderThickness="1" BorderBrush="#30808080" HorizontalAlignment="Left" MaxWidth="520">
+            <StackPanel Spacing="10">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <views:LockIcon Width="22" Height="22" />
+                    <TextBlock Text="Locked" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Text="{Binding LockedHint}" TextWrapping="Wrap" FontSize="12" Opacity="0.8" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBox Text="{Binding Password, Mode=TwoWay}" PasswordChar="●" Watermark="Password" Width="280">
+                        <TextBox.KeyBindings>
+                            <KeyBinding Gesture="Enter" Command="{Binding UnlockCommand}" />
+                        </TextBox.KeyBindings>
+                    </TextBox>
+                    <Button Classes="accent" Content="Unlock" Command="{Binding UnlockCommand}" IsEnabled="{Binding !IsBusy}" />
+                </StackPanel>
+                <ProgressBar IsIndeterminate="True" Height="4" IsVisible="{Binding IsBusy}" />
+            </StackPanel>
+        </Border>
+
+        <!-- Preview of the selected item (decrypted in memory only) -->
+        <Border DockPanel.Dock="Right" Width="420" IsVisible="{Binding HasSelection}" BorderThickness="1,0,0,0" BorderBrush="#30808080" Padding="10">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="0,8,0,0">
+                    <TextBlock Text="{Binding PreviewDetails}" TextWrapping="Wrap" FontSize="12" />
+                    <WrapPanel>
+                        <Button Content="Export a copy…" Click="ExportClick" Margin="0,0,8,6"
+                                ToolTip.Tip="Writes a decrypted copy where you choose. That copy is not protected." />
+                        <Button Content="Move to library" Command="{Binding RestoreSelectedCommand}" Margin="0,0,8,6" />
+                        <Button Content="Delete permanently…" Command="{Binding DeleteSelectedCommand}" Margin="0,0,0,6" />
+                    </WrapPanel>
+                </StackPanel>
+                <Panel>
+                    <Image Source="{Binding PreviewBitmap}" Stretch="Uniform" />
+                    <TextBlock Text="No preview for this type inside the vault. Export a copy to open it." IsVisible="{Binding PreviewUnavailable}"
+                               TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.6" MaxWidth="300" />
+                </Panel>
+            </DockPanel>
+        </Border>
+
+        <!-- Tiles: grey locks while locked; in-memory thumbnails once unlocked -->
+        <ScrollViewer>
+            <Panel Margin="8,0,8,12">
+                <ItemsControl ItemsSource="{Binding LockedTiles}" IsVisible="{Binding IsLocked}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Width="{Binding $parent[ItemsControl].((vm:VaultViewModel)DataContext).TileSize}"
+                                    Height="{Binding $parent[ItemsControl].((vm:VaultViewModel)DataContext).TileSize}"
+                                    Margin="4" CornerRadius="6" Background="#33808080">
+                                <views:LockIcon Width="28" Height="28" Opacity="0.55" />
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <ItemsControl ItemsSource="{Binding Items}" IsVisible="{Binding !IsLocked}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:VaultItemViewModel">
+                            <views:VaultTile />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Panel>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

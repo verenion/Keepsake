@@ -1,0 +1,178 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PhotoLibrary.App.ViewModels"
+             xmlns:clip="using:PhotoLibrary.AI.Clip"
+             x:Class="PhotoLibrary.App.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.h">
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,2" />
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Opacity" Value="0.7" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style Selector="Border.card">
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#30808080" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="16" />
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer>
+        <StackPanel Margin="24" Spacing="20" MaxWidth="760" HorizontalAlignment="Left">
+
+            <!-- Library -->
+            <Border Classes="card">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="h" Text="Library" />
+                    <TextBlock Classes="hint" Text="The folder that is scanned, organised and indexed. Changing it rescans; nothing is moved." />
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Change…" Click="ChangeLibraryClick" Margin="8,0,0,0" />
+                        <TextBox Text="{Binding LibraryRoot, Mode=OneWay}" IsReadOnly="True" />
+                    </DockPanel>
+                    <TextBlock Classes="hint" Text="{Binding HiddenText}" Margin="0,8,0,0" />
+                    <Button Content="Restore removed items" Command="{Binding RestoreHiddenCommand}" HorizontalAlignment="Left" />
+                </StackPanel>
+            </Border>
+
+            <!-- Storage -->
+            <Border Classes="card">
+                <StackPanel Spacing="8">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding RefreshStorageCommand}" FontSize="12" />
+                        <TextBlock Classes="h" Text="Storage and indexes" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <TextBlock Classes="hint" Text="What the app keeps in its data folder. Each AI model's index is stored separately." />
+                    <ItemsControl ItemsSource="{Binding Storage}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:SettingsViewModel+StorageLine">
+                                <Grid ColumnDefinitions="260,110,*" Margin="0,3">
+                                    <TextBlock Grid.Column="0" Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Value}" FontWeight="SemiBold" TextAlignment="Right" Margin="0,0,16,0" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Detail}" Opacity="0.7" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <ProgressBar IsIndeterminate="True" Height="4" IsVisible="{Binding StorageBusy}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Appearance -->
+            <Border Classes="card">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="h" Text="Appearance" />
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding TileSizeText}" Width="56" TextAlignment="Right" VerticalAlignment="Center" />
+                        <TextBlock DockPanel.Dock="Left" Text="Thumbnail size" Width="160" VerticalAlignment="Center" />
+                        <Slider Minimum="100" Maximum="260" TickFrequency="20" IsSnapToTickEnabled="True" Value="{Binding TileSize}" />
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- AI model -->
+            <Border Classes="card">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="h" Text="AI model" />
+                    <TextBlock Classes="hint" Text="All models run on this PC; nothing leaves your machine. Larger models search better but take longer to index. Each model keeps its own index, so switching to a new one means indexing again, while switching back is instant." />
+                    <ComboBox ItemsSource="{Binding Models}" SelectedItem="{Binding SelectedModel, Mode=TwoWay}" HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ModelOption">
+                                <TextBlock Text="{Binding Label}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <StackPanel Spacing="4" DataContext="{Binding SelectedModel}" x:DataType="vm:ModelOption">
+                        <TextBlock Classes="hint" Text="{Binding Description}" />
+                        <StackPanel Orientation="Horizontal" Spacing="16">
+                            <TextBlock Classes="hint" Text="{Binding SizeText, StringFormat='Download: {0}'}" />
+                            <TextBlock Classes="hint" Text="{Binding IndexText}" />
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Use this model" Command="{Binding UseModelCommand}" />
+                        <Button Content="Download" Command="{Binding DownloadModelCommand}" IsVisible="{Binding !IsDownloading}" />
+                        <Button Content="Cancel download" Command="{Binding CancelDownloadCommand}" IsVisible="{Binding IsDownloading}" />
+                        <Button Content="Remove download" Command="{Binding RemoveModelCommand}" IsVisible="{Binding CanRemoveSelected}" />
+                    </StackPanel>
+                    <ProgressBar Minimum="0" Maximum="100" Value="{Binding DownloadPercent}" Height="6" IsVisible="{Binding IsDownloading}" />
+                    <TextBlock Classes="hint" Text="{Binding ModelMessage}" IsVisible="{Binding ModelMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                    <TextBlock Text="Videos" FontWeight="SemiBold" Margin="0,8,0,0" />
+                    <TextBlock Classes="hint" Text="Each video is indexed from frames sampled through it, so a search finds the moment that matches, not just the opening shot. Long videos are sampled more sparsely to stay under the frame cap. Needs ffmpeg. A new interval applies to videos indexed from now on; re-index to apply it to the rest." />
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding VideoFrameIntervalText}" Width="260" VerticalAlignment="Center" FontSize="12" />
+                        <TextBlock DockPanel.Dock="Left" Text="Sample a frame" Width="160" VerticalAlignment="Center" />
+                        <Slider Minimum="2" Maximum="60" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding VideoFrameInterval}" />
+                    </DockPanel>
+                    <Button Content="Re-index videos" Command="{Binding ReindexVideosCommand}" HorizontalAlignment="Left" />
+                </StackPanel>
+            </Border>
+
+            <!-- Hardware -->
+            <Border Classes="card">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="h" Text="Hardware" />
+                    <TextBlock Classes="hint" Text="{Binding GpuHint}" />
+                    <CheckBox Content="Run the AI model on the GPU" IsChecked="{Binding UseGpu}" IsEnabled="{Binding HasGpu}" />
+                    <ComboBox ItemsSource="{Binding Gpus}" SelectedItem="{Binding SelectedGpu, Mode=TwoWay}" IsEnabled="{Binding UseGpu}" HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="clip:GpuDevice">
+                                <TextBlock Text="{Binding Label}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBlock Classes="hint" Text="{Binding DeviceStatus}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Video -->
+            <Border Classes="card">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="h" Text="Video and HEIC" />
+                    <TextBlock Classes="hint" Text="Thumbnails and previews for videos are made with ffmpeg. HEIC photos use Windows' own decoder when the HEIF and HEVC extensions from the Store are installed, and ffmpeg otherwise." TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding HeicStatus}" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding FfmpegStatus}" TextWrapping="Wrap" />
+                    <TextBlock Classes="hint" Text="{Binding FfmpegSizeText}" IsVisible="{Binding !FfmpegInstalled}" TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Download ffmpeg" Command="{Binding DownloadFfmpegCommand}" IsVisible="{Binding !IsDownloadingFfmpeg}" />
+                        <Button Content="Cancel download" Command="{Binding CancelFfmpegDownloadCommand}" IsVisible="{Binding IsDownloadingFfmpeg}" />
+                        <Button Content="Check again" Click="RefreshFfmpegClick" IsVisible="{Binding !FfmpegInstalled}" />
+                    </StackPanel>
+                    <ProgressBar Minimum="0" Maximum="100" Value="{Binding FfmpegPercent}" Height="6" IsVisible="{Binding IsDownloadingFfmpeg}" />
+                    <TextBlock Classes="hint" Text="{Binding FfmpegMessage}" IsVisible="{Binding FfmpegMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <!-- Search tuning -->
+            <Border Classes="card">
+                <StackPanel Spacing="10">
+                    <TextBlock Classes="h" Text="Search" />
+                    <TextBlock Classes="hint" Text="Text search keeps photos that score well above the library's average for the query. Changes apply to the next search." />
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding SearchMinZText}" Width="260" VerticalAlignment="Center" FontSize="12" />
+                        <TextBlock DockPanel.Dock="Left" Text="Match strictness" Width="160" VerticalAlignment="Center" />
+                        <Slider Minimum="2" Maximum="4" TickFrequency="0.1" IsSnapToTickEnabled="True" Value="{Binding SearchMinZ}" />
+                    </DockPanel>
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding SearchMaxResults}" Width="260" VerticalAlignment="Center" FontSize="12" />
+                        <TextBlock DockPanel.Dock="Left" Text="Maximum results" Width="160" VerticalAlignment="Center" />
+                        <Slider Minimum="50" Maximum="1000" TickFrequency="50" IsSnapToTickEnabled="True" Value="{Binding SearchMaxResults}" />
+                    </DockPanel>
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding SimilarMinScoreText}" Width="260" VerticalAlignment="Center" FontSize="12" />
+                        <TextBlock DockPanel.Dock="Left" Text="“Photos like this” cutoff" Width="160" VerticalAlignment="Center" />
+                        <Slider Minimum="0.4" Maximum="0.9" TickFrequency="0.05" IsSnapToTickEnabled="True" Value="{Binding SimilarMinScore}" />
+                    </DockPanel>
+                    <Button Content="Reset to defaults" Command="{Binding ResetSearchDefaultsCommand}" HorizontalAlignment="Left" />
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PhotoLibrary.AI/PhotoLibrary.AI.csproj" />
+    <Project Path="src/PhotoLibrary.App/PhotoLibrary.App.csproj" />
+    <Project Path="src/PhotoLibrary.Core/PhotoLibrary.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PhotoLibrary.Tests/PhotoLibrary.Tests.csproj" />
+  </Folder>
+</Solution>

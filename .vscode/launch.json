@@ -1,0 +1,55 @@
+{
+    // VS Code debug configurations for Photo Library.
+    // Needs the "C# Dev Kit" (or "C#") extension.
+    // Build output lives under %LOCALAPPDATA%\PhotoLibraryBuild (see Directory.Build.props), hence the program paths.
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "App (Debug)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build: app",
+            "program": "${env:LOCALAPPDATA}/PhotoLibraryBuild/PhotoLibrary.App/bin/Debug/net10.0/PhotoLibrary.App.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/PhotoLibrary.App",
+            "stopAtEntry": false,
+            "console": "internalConsole",
+            "justMyCode": true
+        },
+        {
+            "name": "App (Release)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build: app (release)",
+            "program": "${env:LOCALAPPDATA}/PhotoLibraryBuild/PhotoLibrary.App/bin/Release/net10.0/PhotoLibrary.App.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/PhotoLibrary.App",
+            "stopAtEntry": false,
+            "console": "internalConsole",
+            "justMyCode": false
+        },
+        {
+            "name": "Tests (debug all)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build: tests",
+            "program": "dotnet",
+            "args": [
+                "test",
+                "${workspaceFolder}/tests/PhotoLibrary.Tests/PhotoLibrary.Tests.csproj",
+                "--no-build"
+            ],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "VSTEST_HOST_DEBUG": "0"
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Attach to .NET process",
+            "type": "coreclr",
+            "request": "attach",
+            "processName": "PhotoLibrary.App"
+        }
+    ]
+}

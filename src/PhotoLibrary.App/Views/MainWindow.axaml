@@ -1,0 +1,177 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PhotoLibrary.App.ViewModels"
+        xmlns:views="using:PhotoLibrary.App.Views"
+        x:Class="PhotoLibrary.App.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="Photo Library" Width="1280" Height="800" MinWidth="900" MinHeight="500">
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Delete" Command="{Binding RemoveSelectedCommand}" />
+    </Window.KeyBindings>
+
+    <DockPanel>
+        <!-- Toolbar -->
+        <Border DockPanel.Dock="Top" Padding="10,8" BorderThickness="0,0,0,1" BorderBrush="#30808080">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
+                    <Button Content="Import folder…" Click="ImportClick" IsEnabled="{Binding !IsBusy}" />
+                    <Button Content="Organise…" Click="OrganiseClick" IsEnabled="{Binding !IsBusy}" />
+                    <Button Content="Rescan" Command="{Binding RescanCommand}" IsEnabled="{Binding !IsBusy}" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Text="Library:" VerticalAlignment="Center" Opacity="0.7" />
+                    <TextBlock Text="{Binding LibraryRoot}" VerticalAlignment="Center" FontWeight="SemiBold" />
+                    <Button Content="Change…" Click="ChangeLibraryClick" IsEnabled="{Binding !IsBusy}" Padding="8,3" />
+                    <TextBlock Text="{Binding LibrarySummary}" VerticalAlignment="Center" Opacity="0.7" Margin="12,0,0,0" />
+                    <Button Background="#40E0A000" CornerRadius="4" Padding="8,3" IsVisible="{Binding NeedsFfmpeg}" Command="{Binding OpenSettingsCommand}"
+                            ToolTip.Tip="Video thumbnails and previews are made with ffmpeg. Settings has a one-click download.">
+                        <TextBlock Text="Videos have no previews: ffmpeg is not installed. Set it up…" FontSize="12" />
+                    </Button>
+                    <Border Background="#40E0A000" CornerRadius="4" Padding="8,3" IsVisible="{Binding NeedsOrganise}">
+                        <TextBlock Text="Some files are not in dated folders yet — see Organise" FontSize="12" />
+                    </Border>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Status bar -->
+        <Border DockPanel.Dock="Bottom" Padding="10,5" BorderThickness="0,1,0,0" BorderBrush="#30808080">
+            <DockPanel>
+                <ProgressBar DockPanel.Dock="Right" Width="220" Height="14" Minimum="0" Maximum="100"
+                             Value="{Binding ProgressPercent}" IsIndeterminate="{Binding ProgressIndeterminate}"
+                             IsVisible="{Binding IsBusy}" Margin="12,0,0,0" />
+                <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis" />
+            </DockPanel>
+        </Border>
+
+            <!-- Preview pane -->
+            <Border DockPanel.Dock="Right" Width="420" IsVisible="{Binding PreviewVisible}" BorderThickness="1,0,0,0" BorderBrush="#30808080" Padding="10">
+                <DockPanel>
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <Button DockPanel.Dock="Right" Content="✕" Command="{Binding ClosePreviewCommand}" Padding="6,2" />
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding SelectionText}" Opacity="0.6" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBlock Text="{Binding PreviewTitle}" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    </DockPanel>
+                    <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="0,8,0,0">
+                        <TextBlock Text="{Binding PreviewDetails}" TextWrapping="Wrap" FontSize="12" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Open" Command="{Binding OpenSelectedCommand}" />
+                            <Button Content="Show in folder" Command="{Binding ShowSelectedInFolderCommand}" />
+                        </StackPanel>
+                    </StackPanel>
+                    <Panel>
+                        <Image Source="{Binding PreviewBitmap}" Stretch="Uniform" />
+                        <TextBlock Text="No preview available for this file type" IsVisible="{Binding PreviewUnavailable}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.6" />
+                    </Panel>
+                </DockPanel>
+            </Border>
+
+        <!-- Main content with tabs -->
+        <TabControl SelectedIndex="{Binding SelectedTab, Mode=TwoWay}" SelectionChanged="TabChanged">
+            <!-- Library tab -->
+            <TabItem Header="Library">
+                <Grid ColumnDefinitions="240,4,*">
+                    <!-- Date tree -->
+                    <TreeView Grid.Column="0" ItemsSource="{Binding Nodes}" SelectedItem="{Binding SelectedNode, Mode=TwoWay}" Margin="4">
+                        <TreeView.ItemTemplate>
+                            <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="vm:TreeNodeViewModel">
+                                <TextBlock Text="{Binding Label}" />
+                            </TreeDataTemplate>
+                        </TreeView.ItemTemplate>
+                        <TreeView.Styles>
+                            <Style Selector="TreeViewItem" x:DataType="vm:TreeNodeViewModel">
+                                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                            </Style>
+                        </TreeView.Styles>
+                    </TreeView>
+
+                    <GridSplitter Grid.Column="1" Background="#20808080" />
+
+                    <!-- Thumbnail grid -->
+                    <DockPanel Grid.Column="2">
+                        <TextBlock DockPanel.Dock="Top" Text="{Binding HeaderText}" FontSize="18" FontWeight="SemiBold" Margin="12,10,12,4" />
+                        <!-- Filter bar -->
+                        <WrapPanel DockPanel.Dock="Top" Margin="12,0,12,8" DataContext="{Binding Filter}" x:DataType="vm:LibraryFilterViewModel">
+                            <WrapPanel.Styles>
+                                <Style Selector="ComboBox">
+                                    <Setter Property="Margin" Value="0,0,6,4" />
+                                    <Setter Property="MinWidth" Value="120" />
+                                    <Setter Property="FontSize" Value="12" />
+                                    <Setter Property="Padding" Value="8,4" />
+                                </Style>
+                            </WrapPanel.Styles>
+                            <ComboBox ItemsSource="{Binding TypeOptions}" SelectedItem="{Binding Type, Mode=TwoWay}" ToolTip.Tip="File type" />
+                            <ComboBox ItemsSource="{Binding CameraOptions}" SelectedItem="{Binding Camera, Mode=TwoWay}" ToolTip.Tip="Camera" MaxWidth="220" />
+                            <ComboBox ItemsSource="{Binding LocationOptions}" SelectedItem="{Binding Location, Mode=TwoWay}" ToolTip.Tip="GPS location" />
+                            <ComboBox ItemsSource="{Binding SizeOptions}" SelectedItem="{Binding Size, Mode=TwoWay}" ToolTip.Tip="File size" />
+                            <ComboBox ItemsSource="{Binding ResolutionOptions}" SelectedItem="{Binding Resolution, Mode=TwoWay}" ToolTip.Tip="Megapixels" />
+                            <ComboBox ItemsSource="{Binding ShapeOptions}" SelectedItem="{Binding Shape, Mode=TwoWay}" ToolTip.Tip="Landscape, portrait or square" />
+                            <ComboBox ItemsSource="{Binding AlbumOptions}" SelectedItem="{Binding AlbumChoice, Mode=TwoWay}" ToolTip.Tip="Album membership" MaxWidth="220" />
+                            <TextBox Text="{Binding NameContains, Mode=TwoWay}" Watermark="File name contains…" Width="170" FontSize="12" Padding="8,4" Margin="0,0,6,4" />
+                            <Button Content="Clear filters" Command="{Binding ClearCommand}" IsVisible="{Binding IsActive}" FontSize="12" Padding="8,4" Margin="0,0,0,4" />
+                        </WrapPanel>
+                        <ScrollViewer x:Name="GridScroll">
+                            <ItemsControl ItemsSource="{Binding Groups}" Margin="8,0,8,12">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <VirtualizingStackPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:DayGroupViewModel">
+                                        <StackPanel Margin="0,4,0,10">
+                                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,0,0,4">
+                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding CountText}" Opacity="0.6" />
+                                            </StackPanel>
+                                            <ItemsControl ItemsSource="{Binding Photos}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:PhotoViewModel">
+                                                        <views:PhotoTile />
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+
+                </Grid>
+            </TabItem>
+
+            <!-- Albums tab -->
+            <TabItem Header="Albums">
+                <views:AlbumsView DataContext="{Binding Albums}" />
+            </TabItem>
+
+            <!-- AI Tools tab -->
+            <TabItem Header="AI Tools">
+                <views:AiPanelView DataContext="{Binding Ai}" />
+            </TabItem>
+
+            <!-- Duplicates tab -->
+            <TabItem Header="Duplicates">
+                <views:DuplicatesView DataContext="{Binding Duplicates}" />
+            </TabItem>
+
+            <!-- Quality tab -->
+            <TabItem Header="Quality">
+                <views:QualityView DataContext="{Binding Quality}" />
+            </TabItem>
+
+            <!-- Settings tab -->
+            <TabItem Header="Settings">
+                <views:SettingsView DataContext="{Binding Settings}" />
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>

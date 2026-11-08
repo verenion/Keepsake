@@ -1,0 +1,14 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PhotoLibrary.App.Views.ConfirmWindow"
+        Width="460" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <StackPanel Margin="20" Spacing="14">
+        <TextBlock x:Name="Heading" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" />
+        <TextBlock x:Name="Message" TextWrapping="Wrap" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button x:Name="CancelButton" Content="Cancel" IsCancel="True" Click="CancelClick" MinWidth="90" />
+            <Button x:Name="ConfirmButton" Classes="accent" Click="ConfirmClick" MinWidth="90" />
+        </StackPanel>
+    </StackPanel>
+</Window>

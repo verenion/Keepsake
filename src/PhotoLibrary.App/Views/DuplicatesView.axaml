@@ -1,0 +1,87 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PhotoLibrary.App.ViewModels"
+             xmlns:views="using:PhotoLibrary.App.Views"
+             x:Class="PhotoLibrary.App.Views.DuplicatesView"
+             x:DataType="vm:DuplicatesViewModel">
+    <DockPanel>
+        <!-- Controls -->
+        <Border DockPanel.Dock="Left" Width="320" BorderThickness="0,0,1,0" BorderBrush="#30808080">
+            <ScrollViewer>
+                <StackPanel Margin="12" Spacing="18">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="How loose a match?" FontWeight="SemiBold" />
+                        <Slider Minimum="0" Maximum="3" TickFrequency="1" IsSnapToTickEnabled="True" TickPlacement="BottomRight" Value="{Binding Level}" />
+                        <DockPanel>
+                            <Border DockPanel.Dock="Left" Width="6" CornerRadius="3" Background="{Binding LevelAccent}" Margin="0,0,8,0" />
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{Binding LevelName}" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding LevelDescription}" TextWrapping="Wrap" FontSize="12" Opacity="0.8" />
+                            </StackPanel>
+                        </DockPanel>
+                        <TextBlock Text="{Binding ModelNote}" IsVisible="{Binding ModelNote, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" TextWrapping="Wrap" FontSize="12" Opacity="0.8" />
+                        <CheckBox IsChecked="{Binding IncludeRawJpegPairs}" Content="Compare RAW files with JPEGs too (the RAW is always kept)" FontSize="12" />
+                        <TextBlock Text="Off: RAW files are only matched against other RAW files, so a RAW + JPEG pair of one shot is never split up." TextWrapping="Wrap" FontSize="11" Opacity="0.7" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Find duplicates" Command="{Binding FindCommand}" IsVisible="{Binding !IsBusy}" />
+                            <Button Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}" />
+                        </StackPanel>
+                        <ProgressBar IsIndeterminate="True" Height="6" IsVisible="{Binding IsBusy}" />
+                        <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12" Opacity="0.8" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="6" IsVisible="{Binding HasGroups}">
+                        <TextBlock Text="Ticked for removal" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding MarkedText}" FontSize="12" Opacity="0.8" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Tick all but best" Command="{Binding MarkAllButBestCommand}" FontSize="12" />
+                            <Button Content="Clear ticks" Command="{Binding ClearMarksCommand}" FontSize="12" />
+                        </StackPanel>
+                        <Button Content="Remove ticked from library" Command="{Binding RemoveMarkedCommand}" HorizontalAlignment="Stretch" />
+                        <TextBlock Text="Hidden from the library and never re-imported; the files stay on disk. Undo from Settings." TextWrapping="Wrap" FontSize="11" Opacity="0.7" />
+                        <Button Content="Delete ticked from disk…" Command="{Binding DeleteMarkedCommand}" HorizontalAlignment="Stretch" />
+                        <TextBlock Text="Sends the files to the Recycle Bin after confirmation." TextWrapping="Wrap" FontSize="11" Opacity="0.7" />
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Groups -->
+        <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Text="{Binding Summary}" FontSize="16" FontWeight="SemiBold" Margin="12,10,12,6" />
+            <ScrollViewer>
+                <ItemsControl ItemsSource="{Binding Groups}" Margin="8,0,8,12">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <VirtualizingStackPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ReviewGroupViewModel">
+                            <Border BorderThickness="4,0,0,0" BorderBrush="{Binding Accent}" Margin="4,4,4,10" Padding="8,2,0,2">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,0,4">
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Subtitle}" Opacity="0.6" />
+                                    </StackPanel>
+                                    <ItemsControl ItemsSource="{Binding Items}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:ReviewItemViewModel">
+                                                <views:ReviewTile />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </DockPanel>
+    </DockPanel>
+</UserControl>

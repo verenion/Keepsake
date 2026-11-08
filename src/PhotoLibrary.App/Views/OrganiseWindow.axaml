@@ -1,0 +1,69 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PhotoLibrary.App.ViewModels"
+        x:Class="PhotoLibrary.App.Views.OrganiseWindow"
+        x:DataType="vm:OrganiseViewModel"
+        Title="Organise library into dated folders" Width="1000" Height="720" MinWidth="700" MinHeight="450"
+        WindowStartupLocation="CenterOwner">
+    <DockPanel Margin="12">
+        <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,8">
+            <TextBlock TextWrapping="Wrap" Opacity="0.8"
+                       Text="Moves every photo and video in the library into YYYY\YYYY_MM\YYYY_MM_DD folders by capture date. Files keep their names. Exact duplicates go to _Duplicates, undated files to _Undated, and each run can be undone from the list at the bottom." />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <Button Content="Preview" Command="{Binding PreviewCommand}" IsEnabled="{Binding !IsBusy}" />
+                <CheckBox Content="Use file modified time for files with no capture date" IsChecked="{Binding UseModifiedTime}" IsEnabled="{Binding !IsBusy}" />
+            </StackPanel>
+            <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" />
+            <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProgressPercent}" IsVisible="{Binding IsBusy}" Height="12" />
+        </StackPanel>
+
+        <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="0,8,0,0">
+            <TextBlock Text="{Binding ResultText}" TextWrapping="Wrap" FontWeight="SemiBold" IsVisible="{Binding ResultText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding HasPlan}">
+                <CheckBox Content="I've looked at the preview — move the files" IsChecked="{Binding Confirmed}" IsEnabled="{Binding !IsBusy}" />
+                <Button Content="Organise now" Command="{Binding ApplyCommand}" IsEnabled="{Binding CanApply}" Background="#3D8BFF" Foreground="White" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Cancel" Click="CancelClick" IsVisible="{Binding IsBusy}" />
+                <Button Content="Close" Click="CloseClick" IsEnabled="{Binding !IsBusy}" />
+            </StackPanel>
+            <TextBlock Text="Previous runs" FontWeight="SemiBold" IsVisible="{Binding PreviousRuns.Count}" />
+            <ItemsControl ItemsSource="{Binding PreviousRuns}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:PreviousRunViewModel">
+                        <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,2">
+                            <Button Content="Undo" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}" Padding="8,2" />
+                            <TextBlock Text="{Binding Text}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+
+        <DockPanel IsVisible="{Binding HasPlan}">
+            <TextBlock DockPanel.Dock="Top" Text="{Binding SummaryText}" FontFamily="Consolas, Menlo, monospace" Margin="0,0,0,8" />
+            <TextBlock DockPanel.Dock="Top" Text="Showing the first 3,000 of the planned moves; the full list is written to the undo log when you organise." Opacity="0.6" FontSize="12" IsVisible="{Binding PlanTruncated}" Margin="0,0,0,4" />
+            <Border BorderThickness="1" BorderBrush="#30808080" CornerRadius="4">
+                <ScrollViewer>
+                    <ItemsControl ItemsSource="{Binding Rows}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <VirtualizingStackPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:PlanRowViewModel">
+                                <Grid ColumnDefinitions="80,*,*,150" Margin="6,1">
+                                    <TextBlock Grid.Column="0" Text="{Binding Action}" FontSize="12" Opacity="0.8" />
+                                    <TextBlock Grid.Column="1" Text="{Binding From}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding From}" />
+                                    <TextBlock Grid.Column="2" Text="{Binding To}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding To}" Margin="8,0" />
+                                    <TextBlock Grid.Column="3" Text="{Binding Why}" FontSize="12" Opacity="0.6" TextTrimming="CharacterEllipsis" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+        </DockPanel>
+    </DockPanel>
+</Window>

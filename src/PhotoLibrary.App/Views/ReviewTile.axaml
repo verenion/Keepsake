@@ -1,0 +1,12 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PhotoLibrary.App.ViewModels"
+             xmlns:views="using:PhotoLibrary.App.Views"
+             x:Class="PhotoLibrary.App.Views.ReviewTile"
+             x:DataType="vm:ReviewItemViewModel">
+    <StackPanel Width="{Binding Photo.TileSize}" Margin="4,4,8,8" Spacing="2">
+        <views:PhotoTile DataContext="{Binding Photo}" Margin="0" />
+        <CheckBox IsChecked="{Binding Marked}" Content="{Binding Caption}" FontSize="12" Padding="6,0,0,0" MinHeight="24" />
+        <TextBlock Text="{Binding Note}" IsVisible="{Binding HasNote}" FontSize="11" Opacity="0.7" TextWrapping="Wrap" />
+    </StackPanel>
+</UserControl>

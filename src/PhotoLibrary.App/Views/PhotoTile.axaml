@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PhotoLibrary.App.ViewModels"
+             x:Class="PhotoLibrary.App.Views.PhotoTile"
+             x:DataType="vm:PhotoViewModel"
+             Width="{Binding TileSize}" Height="{Binding TileSize}" Margin="4">
+    <UserControl.ContextMenu>
+        <ContextMenu Opening="MenuOpening">
+            <MenuItem Header="Open" Command="{Binding Main.OpenSelectedCommand}" />
+            <MenuItem Header="Show in folder" Command="{Binding Main.ShowSelectedInFolderCommand}" />
+            <MenuItem Header="Find similar photos" Command="{Binding Main.FindSimilarSelectedCommand}" />
+            <Separator />
+            <MenuItem x:Name="AlbumMenu" Header="Add to album" />
+            <MenuItem x:Name="RemoveFromAlbumItem" Header="{Binding Main.Albums.RemoveMenuText}" Command="{Binding Main.Albums.RemoveSelectedFromAlbumCommand}" />
+            <MenuItem x:Name="SetCoverItem" Header="Use as album cover" Command="{Binding Main.Albums.SetCoverCommand}" />
+            <Separator />
+            <MenuItem Header="{Binding Main.RemoveMenuText}" Command="{Binding Main.RemoveSelectedCommand}" />
+            <MenuItem Header="{Binding Main.DeleteMenuText}" Command="{Binding Main.DeleteSelectedCommand}" />
+        </ContextMenu>
+    </UserControl.ContextMenu>
+    <Border x:Name="Frame" CornerRadius="6" ClipToBounds="True" Background="#22808080"
+            BorderThickness="3" BorderBrush="Transparent"
+            ToolTip.Tip="{Binding ToolTipText}">
+        <Panel>
+            <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />
+            <TextBlock Text="{Binding FailedText}" IsVisible="{Binding ThumbnailFailed}"
+                       FontSize="11" TextWrapping="Wrap" TextAlignment="Center"
+                       VerticalAlignment="Center" Margin="8" Opacity="0.7" />
+            <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="6" Background="#A0000000" CornerRadius="8" Padding="4,3"
+                    IsVisible="{Binding HasAlbums}" ToolTip.Tip="{Binding AlbumNames}">
+                <ItemsControl ItemsSource="{Binding AlbumBrushes}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="3" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Ellipse Width="9" Height="9" Fill="{Binding}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+            <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="6"
+                    Background="#A0000000" CornerRadius="3" Padding="5,1"
+                    IsVisible="{Binding Badge, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                <TextBlock Text="{Binding Badge}" Foreground="White" FontSize="11" />
+            </Border>
+        </Panel>
+    </Border>
+</UserControl>

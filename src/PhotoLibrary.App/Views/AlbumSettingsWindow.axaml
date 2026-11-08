@@ -1,0 +1,96 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PhotoLibrary.App.Views.AlbumSettingsWindow"
+        Width="520" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <Window.Styles>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,6,0,2" />
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Opacity" Value="0.7" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style Selector="Button.swatch">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="CornerRadius" Value="15" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="BorderThickness" Value="3" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.swatch.chosen">
+            <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+        </Style>
+    </Window.Styles>
+
+    <StackPanel Margin="20" Spacing="4">
+        <TextBlock x:Name="Heading" FontSize="18" FontWeight="SemiBold" />
+
+        <TextBlock Classes="label" Text="Name" />
+        <TextBox x:Name="NameBox" Watermark="e.g. Summer 2024" />
+
+        <TextBlock Classes="label" Text="Colour" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <WrapPanel x:Name="Swatches" Width="300" />
+            <TextBox x:Name="ColourBox" Width="90" Watermark="#RRGGBB" VerticalAlignment="Top" />
+        </StackPanel>
+
+        <StackPanel x:Name="CoverPanel" Spacing="4">
+        <TextBlock Classes="label" Text="Cover" />
+        <DockPanel>
+            <StackPanel DockPanel.Dock="Right" Spacing="6" Margin="12,0,0,0" VerticalAlignment="Center">
+                <Button x:Name="ChooseCover" Content="Choose photo…" Click="ChooseCoverClick" />
+                <Button x:Name="ClearCover" Content="Use first photo" Click="ClearCoverClick" />
+                <TextBlock Classes="hint" Text="Or right-click a photo in the album and choose “Use as album cover”." Width="220" />
+            </StackPanel>
+            <Border Width="96" Height="96" CornerRadius="8" ClipToBounds="True" Background="#22808080" HorizontalAlignment="Left">
+                <Panel>
+                    <Image x:Name="CoverImage" Stretch="UniformToFill" />
+                    <TextBlock x:Name="CoverText" Text="first photo" FontSize="11" Opacity="0.6" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Panel>
+            </Border>
+        </DockPanel>
+        </StackPanel>
+
+        <TextBlock Classes="label" Text="Type" />
+        <RadioButton x:Name="VirtualRadio" GroupName="kind" IsChecked="True">
+            <StackPanel>
+                <TextBlock Text="Virtual" FontWeight="SemiBold" />
+                <TextBlock Classes="hint" Text="A list. Files stay exactly where they are, and a photo can be in any number of virtual albums." />
+            </StackPanel>
+        </RadioButton>
+        <RadioButton x:Name="PhysicalRadio" GroupName="kind" Margin="0,4,0,0">
+            <StackPanel>
+                <TextBlock Text="Folder (physical)" FontWeight="SemiBold" />
+                <TextBlock x:Name="PhysicalHint" Classes="hint" />
+            </StackPanel>
+        </RadioButton>
+        <RadioButton x:Name="SecureRadio" GroupName="kind" Margin="0,4,0,0">
+            <StackPanel>
+                <TextBlock Text="Secure (encrypted vault)" FontWeight="SemiBold" />
+                <TextBlock Classes="hint" Text="Photos are encrypted with this album's own password (AES-256, Argon2id) and the originals are deleted for good. They leave the library, search, duplicates and every other view, and appear only in this album once it is unlocked. There is no way to recover a forgotten password." />
+            </StackPanel>
+        </RadioButton>
+        <StackPanel x:Name="PasswordPanel" Spacing="6" Margin="0,8,0,0" IsVisible="False">
+            <TextBlock x:Name="PasswordLabel" Classes="label" Text="Password" />
+            <TextBox x:Name="CurrentPasswordBox" PasswordChar="●" Watermark="Current password" IsVisible="False" />
+            <TextBox x:Name="NewPasswordBox" PasswordChar="●" Watermark="Password (at least 8 characters)" />
+            <TextBox x:Name="ConfirmPasswordBox" PasswordChar="●" Watermark="Type it again" />
+        </StackPanel>
+        <Border x:Name="KindWarning" Background="#40E0A000" CornerRadius="4" Padding="10,6" Margin="0,8,0,0" IsVisible="False">
+            <TextBlock x:Name="KindWarningText" TextWrapping="Wrap" FontSize="12" />
+        </Border>
+        <TextBlock x:Name="Error" Foreground="#E5484D" FontSize="12" TextWrapping="Wrap" IsVisible="False" Margin="0,6,0,0" />
+
+        <DockPanel Margin="0,16,0,0">
+            <Button x:Name="DeleteButton" DockPanel.Dock="Left" Content="Delete album…" Click="DeleteClick" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <Button Content="Cancel" IsCancel="True" Click="CancelClick" MinWidth="90" />
+                <Button x:Name="SaveButton" Classes="accent" Content="Save" IsDefault="True" Click="SaveClick" MinWidth="90" />
+            </StackPanel>
+        </DockPanel>
+    </StackPanel>
+</Window>

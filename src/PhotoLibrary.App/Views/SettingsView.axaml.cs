@@ -1,0 +1,26 @@
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using PhotoLibrary.App.ViewModels;
+
+namespace PhotoLibrary.App.Views;
+
+public partial class SettingsView : UserControl
+{
+    public SettingsView()
+    {
+        InitializeComponent();
+    }
+
+    private void RefreshFfmpegClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is SettingsViewModel vm) vm.RefreshFfmpeg();
+    }
+
+    private async void ChangeLibraryClick(object? sender, RoutedEventArgs e)
+    {
+        if (TopLevel.GetTopLevel(this) is not MainWindow window || window.DataContext is not MainViewModel main) return;
+        if (main.IsBusy) return;
+        var folder = await window.PickFolderAsync("Choose the photo library folder", main.State.LibraryRoot);
+        if (folder is not null) await main.ChangeLibraryAsync(folder);
+    }
+}
