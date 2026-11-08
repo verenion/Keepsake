@@ -99,6 +99,22 @@
                 </StackPanel>
             </Border>
 
+            <!-- Updates -->
+            <Border Classes="card">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="h" Text="Updates" />
+                    <TextBlock Text="{Binding VersionText}" />
+                    <TextBlock Classes="hint" Text="Keepsake never connects to the internet on its own. Checking for updates contacts GitHub only when you press the button." />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Check for updates" Command="{Binding CheckForUpdatesCommand}" IsEnabled="{Binding CanCheckForUpdates}" />
+                        <Button Content="Cancel" Command="{Binding CancelUpdateCommand}" IsVisible="{Binding UpdateBusy}" />
+                        <Button Classes="accent" Content="Restart to update" Command="{Binding RestartToUpdateCommand}" IsVisible="{Binding UpdateReady}" />
+                    </StackPanel>
+                    <ProgressBar Minimum="0" Maximum="100" Value="{Binding UpdateProgress}" Height="4" IsVisible="{Binding UpdateBusy}" />
+                    <TextBlock Classes="hint" Text="{Binding UpdateStatus}" IsVisible="{Binding UpdateStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                </StackPanel>
+            </Border>
+
             <!-- AI model -->
             <Border Classes="card">
                 <StackPanel Spacing="8">

@@ -282,6 +282,61 @@ public partial class SettingsViewModel : ViewModelBase
         await RefreshStorageAsync();
     }
 
+    // ---- updates (the only network access in the app, and only on demand)
+
+    private readonly Updater _updater = new();
+    private CancellationTokenSource? _updateCts;
+
+    public string VersionText => _updater.CanUpdate
+        ? $"Keepsake {_updater.CurrentVersion}"
+        : $"Keepsake {_updater.CurrentVersion} (development build: updates only work in an installed copy)";
+
+    public bool CanCheckForUpdates => _updater.CanUpdate && !UpdateBusy;
+
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanCheckForUpdates))]
+    public partial bool UpdateBusy { get; set; }
+
+    [ObservableProperty] public partial string? UpdateStatus { get; set; }
+    [ObservableProperty] public partial int UpdateProgress { get; set; }
+    [ObservableProperty] public partial bool UpdateReady { get; set; }
+
+    [RelayCommand]
+    private async Task CheckForUpdates()
+    {
+        if (!_updater.CanUpdate || UpdateBusy) return;
+        UpdateBusy = true;
+        UpdateReady = false;
+        UpdateProgress = 0;
+        try
+        {
+            UpdateStatus = "Checking GitHub for a newer release…";
+            var newer = await _updater.CheckAsync();
+            if (newer is null) { UpdateStatus = "You have the latest version."; return; }
+
+            UpdateStatus = $"Downloading Keepsake {newer}…";
+            _updateCts = new CancellationTokenSource();
+            await _updater.DownloadAsync(p => Avalonia.Threading.Dispatcher.UIThread.Post(() => UpdateProgress = p), _updateCts.Token);
+            UpdateStatus = $"Keepsake {newer} is ready. Restart to finish updating.";
+            UpdateReady = true;
+        }
+        catch (OperationCanceledException) { UpdateStatus = "Download cancelled."; }
+        catch (Exception ex) { UpdateStatus = $"Couldn't update: {ex.Message}"; }
+        finally { UpdateBusy = false; _updateCts?.Dispose(); _updateCts = null; }
+    }
+
+    [RelayCommand]
+    private void CancelUpdate() => _updateCts?.Cancel();
+
+    [RelayCommand]
+    private async Task RestartToUpdate()
+    {
+        if (!UpdateReady) return;
+        if (!await AskAsync("Restart to update",
+                "Keepsake will close, install the update and reopen. Any scan, import or indexing in progress stops and resumes next time, and unlocked vaults lock.",
+                "Restart now")) return;
+        _updater.ApplyAndRestart();
+    }
+
     // ---- theme
 
     public sealed record ThemeOption(string Key, string Label);

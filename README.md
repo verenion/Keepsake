@@ -132,15 +132,16 @@ common video formats (MP4, MOV, M4V, 3GP, AVI, MTS, MKV, WMV), including Pixel m
 
 ## Privacy
 
-Keepsake makes **no network connections** except two optional downloads, each started only when you click its
+Keepsake makes **no network connections on its own**. There are three, each made only when you click its
 button:
 
-| Download | From | Needed for |
+| Connection | To | Needed for |
 |---|---|---|
-| The CLIP AI model, 150 MB to 1.7 GB | Hugging Face (`huggingface.co/Xenova/...`) | AI search, tags, events, similar photos |
-| ffmpeg, about 200 MB | GitHub (`BtbN/FFmpeg-Builds`) | Video thumbnails, previews and AI indexing |
+| Download the CLIP AI model, 150 MB to 1.7 GB | Hugging Face (`huggingface.co/Xenova/...`) | AI search, tags, events, similar photos |
+| Download ffmpeg, about 200 MB | GitHub (`BtbN/FFmpeg-Builds`) | Video thumbnails, previews and AI indexing |
+| *Check for updates* in Settings | GitHub Releases for this repo | Updating Keepsake |
 
-Everything else works without either. There is no telemetry, no update check and no account.
+Everything else works without any of them. There is no telemetry, no automatic update check and no account.
 
 **Fully offline machines** can install both by hand:
 
@@ -169,12 +170,21 @@ What Keepsake keeps, all on your machine:
 
 ## Download
 
-Get the latest `Keepsake-<version>-win-x64.zip` from the
-[Releases](https://github.com/verenion/PhotoLibrary/releases) page, unzip it anywhere and run `Keepsake.exe`.
-It's self-contained, so .NET doesn't need to be installed. Each zip has a `.sha256` file beside it to check the
-download.
+From the [Releases](https://github.com/verenion/PhotoLibrary/releases) page, get either:
 
-The app isn't code-signed yet, so Windows SmartScreen may warn the first time: choose *More info › Run anyway*.
+- **`Keepsake-win-Setup.exe`**, the installer. It installs for your Windows user only, in
+  `%LOCALAPPDATA%\Keepsake`, with no admin prompt, and adds a Start menu shortcut. Uninstall from Windows
+  *Settings › Apps*.
+- **`Keepsake-win-Portable.zip`**: unzip anywhere and run `Keepsake.exe`. Nothing is installed.
+
+Both are self-contained, so .NET doesn't need to be installed, and both have a `.sha256` file beside them to
+check the download. The app isn't code-signed yet, so Windows SmartScreen may warn the first time: choose
+*More info › Run anyway*.
+
+**Updating:** open *Settings › Updates* and click *Check for updates*. If there's a newer release, Keepsake
+downloads it (usually just the changed parts, a few MB), then *Restart to update* installs it and reopens.
+Keepsake never checks by itself. Your library, database, AI models and settings live outside the app folder, so
+updating, reinstalling or uninstalling doesn't touch them.
 
 ## Releasing
 
@@ -185,7 +195,9 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-A tag with a suffix, such as `v0.2.0-beta.1`, becomes a pre-release. Release notes are generated from the
+The workflow packs the app with [Velopack](https://velopack.io) into the installer, the portable zip and the
+update packages. A delta from the previous release is included when there is one. A tag with a suffix, such as
+`v0.2.0-beta.1`, becomes a pre-release, which *Check for updates* ignores. Release notes are generated from the
 commits since the previous tag. Every push to `main` and every pull request is also built and tested, but
 documentation-only changes are skipped.
 

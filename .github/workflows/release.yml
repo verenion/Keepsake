@@ -47,27 +47,42 @@ jobs:
           dotnet publish src/PhotoLibrary.App -c Release -r win-x64 --self-contained true
           -p:Version=${{ steps.version.outputs.version }} -o publish
 
-      - name: Package
-        id: package
+      - name: Trim the publish folder
         shell: pwsh
         run: |
           # Debug symbols and DirectML's debug layer are over half the size and never used by the app.
           Remove-Item publish/*.pdb, publish/DirectML.Debug.*, publish/*.lib -ErrorAction SilentlyContinue
           Rename-Item publish/PhotoLibrary.App.exe Keepsake.exe
           Copy-Item README.md, LICENSE, THIRD_PARTY_NOTICES.md publish/
-          $zip = "Keepsake-${{ steps.version.outputs.version }}-win-x64.zip"
-          Compress-Archive -Path publish/* -DestinationPath $zip -CompressionLevel Optimal
-          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  $zip" | Out-File "$zip.sha256" -Encoding ascii -NoNewline
-          "zip=$zip" >> $env:GITHUB_OUTPUT
+
+      - name: Build the installer and update packages (Velopack)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          dotnet tool install -g vpk --version 1.2.161   # keep in step with the Velopack package in PhotoLibrary.App.csproj
+          # The previous release lets vpk build a small delta update. There is none the first time.
+          vpk download github --repoUrl "https://github.com/$env:GITHUB_REPOSITORY" --token $env:GH_TOKEN -o releases
+          if ($LASTEXITCODE -ne 0) { Write-Host "No previous release; full package only."; $global:LASTEXITCODE = 0 }
+          vpk pack --packId Keepsake --packVersion $env:VERSION --packDir publish --mainExe Keepsake.exe `
+            --packTitle Keepsake --packAuthors "Keepsake contributors" --icon src/PhotoLibrary.App/Assets/keepsake.ico -o releases
+          foreach ($f in 'Keepsake-win-Setup.exe', 'Keepsake-win-Portable.zip') {
+            $hash = (Get-FileHash "releases/$f" -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $f" | Out-File "releases/$f.sha256" -Encoding ascii -NoNewline
+          }
 
       - name: Create the GitHub release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          ZIP: ${{ steps.package.outputs.zip }}
+          VERSION: ${{ steps.version.outputs.version }}
           PRERELEASE: ${{ steps.version.outputs.prerelease }}
         run: |
-          $releaseArgs = @($env:TAG, $env:ZIP, "$($env:ZIP).sha256", '--title', "Keepsake $env:TAG", '--generate-notes', '--verify-tag')
+          # Only this version's files; older packages downloaded for the delta stay on their own releases.
+          $assets = @(Get-ChildItem releases -File | Where-Object {
+              $_.Name -like "Keepsake-$env:VERSION-*" -or $_.Name -like 'Keepsake-win-*' -or
+              $_.Name -in 'releases.win.json', 'assets.win.json', 'RELEASES' } | ForEach-Object FullName)
+          $releaseArgs = @($env:TAG) + $assets + @('--title', "Keepsake $env:TAG", '--generate-notes', '--verify-tag')
           if ($env:PRERELEASE -eq 'true') { $releaseArgs += '--prerelease' }
           gh release create @releaseArgs

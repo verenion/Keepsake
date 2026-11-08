@@ -13,6 +13,7 @@ this repository.
 | SkiaSharp (+ NativeAssets.Linux) | MIT | Image decoding, resizing, thumbnails |
 | MetadataExtractor | Apache-2.0 | EXIF / QuickTime metadata |
 | Konscious.Security.Cryptography.Argon2 (+ .Blake2) | MIT | Argon2id password hashing for secure albums |
+| Velopack | MIT | Installer and on-demand updates |
 | Microsoft.Data.Sqlite, SQLitePCLRaw | MIT / Apache-2.0 | Library database (SQLite itself is public domain) |
 | Microsoft.ML.OnnxRuntime.DirectML, Microsoft.ML.OnnxRuntime.Managed | MIT | Running the CLIP model |
 | Microsoft.AI.DirectML | Microsoft Software License Terms (redistributable, Windows only) | GPU inference. Pulled in by the ONNX Runtime DirectML package; its licence permits distribution inside applications but not modification. See `LICENSE.txt` inside the package. |
