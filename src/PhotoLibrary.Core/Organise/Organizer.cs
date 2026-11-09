@@ -2,13 +2,14 @@ using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using PhotoLibrary.Core.Db;
+using PhotoLibrary.Core.Layout;
 using PhotoLibrary.Core.Scanning;
 
 namespace PhotoLibrary.Core.Organise;
 
-public enum OrganiseAction { Move, Duplicate, Undated }
+public enum OrganiseAction { Move, Undated }
 
-public sealed record OrganiseItem(OrganiseAction Action, MediaRecord Record, string Dest, string? DuplicateOf, string? DateSource);
+public sealed record OrganiseItem(OrganiseAction Action, MediaRecord Record, string Dest, string? DateSource);
 
 public sealed class OrganisePlan
 {
@@ -17,8 +18,14 @@ public sealed class OrganisePlan
     public required int Total { get; init; }
     public required int Settled { get; init; }
     public required Dictionary<string, int> OtherFiles { get; init; }
+    /// <summary>
+    /// Dated photos left where they are because their date folder's name is taken by an album or a folder
+    /// still waiting for a decision, keyed by that folder's name.
+    /// </summary>
+    public Dictionary<string, int> Blocked { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Folders not to remove when emptied (folder albums keep their folder).</summary>
+    public Func<string, bool>? KeepWhenEmpty { get; init; }
     public int Moves => Items.Count(i => i.Action == OrganiseAction.Move);
-    public int Duplicates => Items.Count(i => i.Action == OrganiseAction.Duplicate);
     public int Undated => Items.Count(i => i.Action == OrganiseAction.Undated);
     public Dictionary<string, int> BySource => Items.Where(i => i.Action == OrganiseAction.Move)
         .GroupBy(i => i.DateSource ?? "?").ToDictionary(g => g.Key, g => g.Count());
@@ -29,67 +36,39 @@ public sealed class OrganisePlan
 public sealed record OrganiseOutcome(long RunId, string Manifest, int Moved, int Errors, int EmptyDirsRemoved, List<string> ErrorMessages);
 
 /// <summary>
-/// Re-files a library into YYYY/YYYY_MM/YYYY_MM_DD. Byte-identical copies go to _Duplicates, files with no
-/// date to _Undated (keeping their old sub-folders), and every move is logged so it can be undone. Files in
-/// physical albums (_Albums) stay put.
+/// Re-files a library into its dated folders (the layout chosen in Settings). Files with no date go to _Undated
+/// (keeping their old sub-folders), and every move is logged so it can be undone. Duplicates are filed like any
+/// other file and left for the Duplicates tab to deal with. Folder albums stay put unless their album says otherwise, and folders waiting for the user to
+/// say whether they are dates or albums are not touched.
 /// </summary>
 public static partial class Organizer
 {
-    [GeneratedRegex(@"^(\d{4})[\\/]\1_(\d\d)[\\/]\1_\2_\d\d$")]
-    private static partial Regex DatedDirRegex();
-
     [GeneratedRegex(@"\(\d+\)$|-duplicate\d*$|[ _-]copy$|-\d$", RegexOptions.IgnoreCase)]
     private static partial Regex DupMarkRegex();
 
-    public static bool IsDatedRelativeDir(string relDir) => DatedDirRegex().IsMatch(relDir);
+    /// <summary>True when a library still has media Organise would file (_Undated counts as settled here).</summary>
+    public static bool NeedsOrganising(IEnumerable<MediaRecord> libraryRecords, FolderMap map) =>
+        libraryRecords.Any(r =>
+            !string.Equals(LibraryFolders.TopOf(map.Root, r.Path), LibraryFolders.Undated, StringComparison.OrdinalIgnoreCase)
+            && !map.IsSettled(r, useMtime: false));
 
-    /// <summary>True when a library still has media outside the dated layout (ignoring the reserved folders).</summary>
-    public static bool NeedsOrganising(IEnumerable<MediaRecord> libraryRecords, string root)
+    public static OrganisePlan Plan(ScanResult scan, bool useMtime, FolderMap map)
     {
-        foreach (var r in libraryRecords)
-        {
-            var rel = Path.GetRelativePath(root, r.Path);
-            var relDir = Path.GetDirectoryName(rel) ?? "";
-            var top = rel.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
-            if (top is LibraryFolders.Undated or LibraryFolders.Duplicates or LibraryFolders.Logs or LibraryFolders.Albums or LibraryFolders.Vault) continue;
-            if (!IsDatedRelativeDir(relDir)) return true;
-        }
-        return false;
-    }
-
-    public static OrganisePlan Plan(string root, ScanResult scan, bool useMtime)
-    {
-        root = Path.GetFullPath(root);
+        var root = map.Root;
         var alloc = new DestAllocator();
-        var kept = new Dictionary<string, string>(StringComparer.Ordinal); // sha -> path that stays
+        var blocked = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var settled = new List<MediaRecord>();
         var todo = new List<MediaRecord>();
 
         foreach (var r in scan.Records)
-        {
-            var rel = Path.GetRelativePath(root, r.Path);
-            var relDir = Path.GetDirectoryName(rel) ?? "";
-            var top = rel.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
-            var inDated = IsDatedRelativeDir(relDir);
-            var inUndated = top == LibraryFolders.Undated && !(useMtime || r.Taken is not null);
-            var inAlbum = top == LibraryFolders.Albums; // a physical album: the user put it there on purpose
-            (inDated || inUndated || inAlbum ? settled : todo).Add(r);
-        }
-        foreach (var r in settled)
-        {
-            kept.TryAdd(r.Sha256, r.Path);
-            alloc.Reserve(r.Path);
-        }
+            (map.IsSettled(r, useMtime) ? settled : todo).Add(r);
+        foreach (var r in settled) alloc.Reserve(r.Path);
 
         var items = new List<OrganiseItem>();
+        // Cleanest name first, so "IMG_1.jpg" keeps its name and "IMG_1 (1).jpg" is the one that gets a suffix.
         foreach (var r in todo.OrderBy(KeepPreference, KeepComparer.Instance))
         {
             var rel = Path.GetRelativePath(root, r.Path);
-            if (kept.TryGetValue(r.Sha256, out var original))
-            {
-                items.Add(new OrganiseItem(OrganiseAction.Duplicate, r, alloc.Claim(Path.Combine(root, LibraryFolders.Duplicates, rel)), original, r.TakenSource));
-                continue;
-            }
             var when = r.Taken;
             var source = r.TakenSource;
             if (when is null && useMtime)
@@ -101,7 +80,13 @@ public static partial class Organizer
             OrganiseAction action;
             if (when is { } w)
             {
-                dest = alloc.Claim(Path.Combine(root, DateRules.DatedFolder(w), r.FileName));
+                if (map.DatedPath(w, r.FileName) is not { } dated)
+                {
+                    var name = map.Dates.TopFor(w);
+                    blocked[name] = blocked.GetValueOrDefault(name) + 1;
+                    continue;
+                }
+                dest = alloc.Claim(dated);
                 action = OrganiseAction.Move;
             }
             else
@@ -111,13 +96,13 @@ public static partial class Organizer
                 dest = alloc.Claim(Path.Combine(root, LibraryFolders.Undated, sub));
                 action = OrganiseAction.Undated;
             }
-            kept[r.Sha256] = dest;
-            items.Add(new OrganiseItem(action, r, dest, null, source));
+            items.Add(new OrganiseItem(action, r, dest, source));
         }
 
         return new OrganisePlan
         {
             Root = root, Items = items, Total = scan.Records.Count, Settled = settled.Count, OtherFiles = scan.OtherFiles,
+            Blocked = blocked, KeepWhenEmpty = map.KeepWhenEmpty,
         };
     }
 
@@ -161,7 +146,7 @@ public static partial class Organizer
                     if (File.Exists(item.Dest)) throw new IOException($"destination exists: {item.Dest}");
                     Directory.CreateDirectory(Path.GetDirectoryName(item.Dest)!);
                     File.Move(item.Record.Path, item.Dest);
-                    db.UpdatePath(item.Record.Path, item.Dest, inLibrary: item.Action != OrganiseAction.Duplicate);
+                    db.UpdatePath(item.Record.Path, item.Dest, inLibrary: true);
                     movedFrom.Add(Path.GetDirectoryName(item.Record.Path)!);
                     moved++;
                 }
@@ -173,7 +158,7 @@ public static partial class Organizer
                 var action = item.Action.ToString().ToLowerInvariant();
                 await writer.WriteLineAsync(string.Join(",", Csv(action), Csv(item.Record.Path), Csv(item.Dest),
                     Csv(item.Record.Taken?.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) ?? ""),
-                    Csv(item.DateSource ?? ""), Csv(item.DuplicateOf ?? ""), Csv(item.Record.Sha256), Csv(status)));
+                    Csv(item.DateSource ?? ""), Csv(""), Csv(item.Record.Sha256), Csv(status)));
                 logItems.Add((action, item.Record.Path, item.Dest, status));
                 if (i % 100 == 0 || i == plan.Items.Count - 1)
                 {
@@ -184,11 +169,12 @@ public static partial class Organizer
         }
         db.AddOrganiseItems(runId, logItems);
         db.FinishOrganiseRun(runId, manifest, moved, errors.Count);
-        var removed = PruneEmptyDirs(root, movedFrom);
+        var removed = PruneEmptyDirs(root, movedFrom, plan.KeepWhenEmpty);
         return new OrganiseOutcome(runId, manifest, moved, errors.Count, removed, errors);
     }
 
-    public static int PruneEmptyDirs(string root, IEnumerable<string> dirs)
+    /// <summary>Removes each emptied folder and then its emptied parents, up to (not including) the library root.</summary>
+    public static int PruneEmptyDirs(string root, IEnumerable<string> dirs, Func<string, bool>? keep = null)
     {
         var removed = 0;
         foreach (var start in dirs.OrderByDescending(d => d.Length))
@@ -196,6 +182,7 @@ public static partial class Organizer
             var d = start;
             while (!Scanner.PathComparer.Equals(d, root) && d.StartsWith(root, StringComparison.OrdinalIgnoreCase))
             {
+                if (keep?.Invoke(d) == true) break;
                 try
                 {
                     if (!Directory.Exists(d)) break;

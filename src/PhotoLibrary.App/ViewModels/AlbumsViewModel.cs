@@ -11,7 +11,7 @@ namespace PhotoLibrary.App.ViewModels;
 /// <summary>What the album settings dialog hands back.</summary>
 /// <summary>What the album settings dialog hands back. <paramref name="Password"/> is a new vault password (creating a
 /// secure album, or changing one, with <paramref name="CurrentPassword"/>).</summary>
-public sealed record AlbumSettingsResult(string Name, string Colour, AlbumKind Kind, long? CoverFileId, string? Password = null, string? CurrentPassword = null);
+public sealed record AlbumSettingsResult(string Name, string Colour, AlbumKind Kind, long? CoverFileId, string? Password = null, string? CurrentPassword = null, bool Organise = false);
 
 /// <summary>
 /// The Albums tab: the list of albums on the left, the selected album's photos on the right. Adding photos
@@ -123,6 +123,7 @@ public partial class AlbumsViewModel : ViewModelBase
     public async Task<AlbumViewModel> CreateAsync(AlbumSettingsResult settings, IReadOnlyList<MediaRecord>? initial = null)
     {
         var album = await Task.Run(() => State.Albums.Create(settings.Name, settings.Kind, settings.Colour, settings.Password));
+        if (album.IsPhysical && settings.Organise) { album.Organise = true; State.Db.UpdateAlbum(album); }
         if (album.IsSecure && settings.Password is { } pw)
             await _main.Vaults.UnlockAsync(album, State.Albums.FolderFor(album), pw); // just set: no need to ask again
         Reload();
@@ -151,6 +152,7 @@ public partial class AlbumsViewModel : ViewModelBase
                 errors.AddRange(r.Errors); moved += r.Moved; relocated.AddRange(r.Relocated);
                 album.Colour = settings.Colour;
                 album.CoverFileId = settings.CoverFileId;
+                album.Organise = settings.Kind == AlbumKind.Physical && settings.Organise;
                 State.Db.UpdateAlbum(album);
                 var k = State.Albums.SetKind(album, settings.Kind);
                 errors.AddRange(k.Errors); moved += k.Moved; relocated.AddRange(k.Relocated);
@@ -164,6 +166,7 @@ public partial class AlbumsViewModel : ViewModelBase
         }
         _main.ApplyRelocations(relocated);
         Reload();
+        _main.RefreshFolderState();
         _main.StatusText = Describe($"Saved album “{album.Name}”.", moved, errors);
     }
 
@@ -277,7 +280,7 @@ public partial class AlbumsViewModel : ViewModelBase
     /// <summary>Counts and folders change when the library is rescanned (files may have been moved by hand).</summary>
     public void OnLibraryScanned(IReadOnlyList<MediaRecord> library)
     {
-        State.Albums.SyncPhysical(library);
+        State.Albums.SyncFolders(library);
         Reload();
     }
 }

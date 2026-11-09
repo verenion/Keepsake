@@ -180,6 +180,7 @@ public class VaultTests : IDisposable
         var path = Path.Combine(dated, "passport.jpg");
         File.WriteAllBytes(path, data);
         using var db = new LibraryDb(Path.Combine(_root, "lib.sqlite"));
+        db.AddDateFolders(["2021"]);
         var rec = new MediaRecord { Path = path, Sha256 = Sha(data), Size = data.Length, MTime = 1, Kind = MediaKind.Image, InLibrary = true, Taken = day, Added = DateTime.Now };
         db.Upsert(rec);
         var albums = new PhotoLibrary.Core.Albums.AlbumService(db, lib);
@@ -217,10 +218,10 @@ public class VaultTests : IDisposable
         var id = VaultStore.Create(lib, "orphan-pass", Fast);
         using var db = new LibraryDb(Path.Combine(_root, "lib2.sqlite"));
         var albums = new PhotoLibrary.Core.Albums.AlbumService(db, lib);
-        Assert.True(albums.SyncPhysical([]));
+        Assert.True(albums.SyncFolders([]));
         var adopted = Assert.Single(db.GetAlbums());
         Assert.True(adopted.IsSecure);
         Assert.Equal(id, adopted.VaultId);
-        Assert.False(albums.SyncPhysical([]));
+        Assert.False(albums.SyncFolders([]));
     }
 }

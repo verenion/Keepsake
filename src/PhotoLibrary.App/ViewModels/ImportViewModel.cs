@@ -140,7 +140,7 @@ public partial class ImportViewModel(AppState state, MainViewModel main) : ViewM
         _cts = new CancellationTokenSource();
         try
         {
-            var n = await state.Importer.ImportAsync(_report, Progress, _cts.Token);
+            var n = await state.Importer.ImportAsync(_report, state.Albums.Folders(), Progress, _cts.Token);
             var errors = _report.Items.Count(i => i.Error is not null);
             ResultText = $"Imported {n:N0} files into {state.LibraryRoot}" + (errors > 0 ? $" ({errors} failed — see the import log)" : ".");
             ImportDone = true;

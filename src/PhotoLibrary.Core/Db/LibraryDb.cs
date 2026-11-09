@@ -63,6 +63,14 @@ public sealed partial class LibraryDb : IDisposable
         }
     }
 
+    /// <summary>Writes a consistent copy of the whole database to <paramref name="path"/> (SQLite's online backup).</summary>
+    public void SnapshotTo(string path)
+    {
+        using var dest = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString());
+        dest.Open();
+        lock (_gate) _conn.BackupDatabase(dest);
+    }
+
     public void Dispose()
     {
         lock (_gate) _conn.Dispose();

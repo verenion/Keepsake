@@ -10,7 +10,10 @@ public partial class ReviewItemViewModel(PhotoViewModel photo, string caption, s
 {
     public PhotoViewModel Photo { get; } = photo;
     public MediaRecord Record => Photo.Record;
-    public string Caption { get; } = caption;
+    /// <summary>The tick box's label; the Duplicates tab updates it as ticks change.</summary>
+    [ObservableProperty] public partial string Caption { get; set; } = caption;
+    /// <summary>The copy Keepsake suggested keeping (Duplicates tab).</summary>
+    public bool Suggested { get; init; }
     public string Note { get; } = note ?? "";
     public bool HasNote => Note.Length > 0;
 

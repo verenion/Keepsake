@@ -1,4 +1,5 @@
 using PhotoLibrary.Core;
+using PhotoLibrary.Core.Albums;
 using PhotoLibrary.Core.Db;
 using PhotoLibrary.Core.Import;
 using PhotoLibrary.Core.Organise;
@@ -92,12 +93,23 @@ public class IntegrationTests(ITestOutputHelper output) : IDisposable
         var scanner = new Scanner(db);
         var scan = await scanner.IndexTreeAsync(Lib, LibraryFolders.ExcludedFromIndex, true, null, CancellationToken.None);
         Assert.Equal(6, scan.Records.Count);
-        Assert.True(Organizer.NeedsOrganising(scan.Records, Lib));
 
-        var plan = Organizer.Plan(Lib, scan, useMtime: false);
-        output.WriteLine($"moves={plan.Moves} dups={plan.Duplicates} undated={plan.Undated}");
-        Assert.Equal(4, plan.Moves);
-        Assert.Equal(1, plan.Duplicates);
+        // A folder made outside Keepsake is an album that Organise leaves alone...
+        var albums = new AlbumService(db, Lib);
+        Assert.True(albums.SyncFolders(scan.Records));
+        var cameraRoll = Assert.Single(db.GetAlbums(), a => a.Name == "Camera Roll");
+        Assert.True(cameraRoll.IsPhysical);
+        Assert.False(cameraRoll.Organise);
+        var leftAlone = Organizer.Plan(scan, useMtime: false, albums.Folders());
+        Assert.DoesNotContain(leftAlone.Items, i => i.Record.Path.StartsWith(messy, StringComparison.OrdinalIgnoreCase));
+
+        // ...until its album says to organise it.
+        cameraRoll.Organise = true;
+        db.UpdateAlbum(cameraRoll);
+        Assert.True(Organizer.NeedsOrganising(scan.Records, albums.Folders()));
+        var plan = Organizer.Plan(scan, useMtime: false, albums.Folders());
+        output.WriteLine($"moves={plan.Moves} undated={plan.Undated}");
+        Assert.Equal(5, plan.Moves); // the exact duplicate is filed too, with a suffix, for the Duplicates tab
         Assert.Equal(1, plan.Undated);
         Assert.Equal(1, plan.OtherFiles[".txt"]);
         foreach (var m in plan.Items.Where(i => i.Action == OrganiseAction.Move))
@@ -108,12 +120,12 @@ public class IntegrationTests(ITestOutputHelper output) : IDisposable
         Assert.Equal(0, outcome.Errors);
         Assert.True(File.Exists(outcome.Manifest));
         Assert.False(Directory.Exists(messy) && Directory.EnumerateFiles(messy).Any(f => !f.EndsWith("notes.txt")));
-        Assert.True(Directory.Exists(Path.Combine(Lib, LibraryFolders.Duplicates)));
+        Assert.False(Directory.Exists(Path.Combine(Lib, LibraryFolders.Duplicates)));
         Assert.True(File.Exists(Path.Combine(Lib, LibraryFolders.Undated, "Camera Roll", "nodate.jpg")));
 
         var rescan = await scanner.IndexTreeAsync(Lib, LibraryFolders.ExcludedFromIndex, true, null, CancellationToken.None);
-        Assert.Equal(5, rescan.Records.Count); // duplicate folder excluded
-        Assert.False(Organizer.NeedsOrganising(rescan.Records, Lib));
+        Assert.Equal(6, rescan.Records.Count); // everything stays in the library
+        Assert.False(Organizer.NeedsOrganising(rescan.Records, albums.Folders()));
 
         var (restored, skipped) = await Organizer.UndoAsync(db, outcome.RunId, null, CancellationToken.None);
         Assert.Equal(6, restored);
@@ -160,7 +172,7 @@ public class IntegrationTests(ITestOutputHelper output) : IDisposable
         Assert.Equal("reencoded.jpg", similar.Record.FileName);
         Assert.Equal(Path.GetFileName(samples[1]), similar.Match!.FileName);
 
-        var imported = await importer.ImportAsync(report, null, CancellationToken.None);
+        var imported = await importer.ImportAsync(report, new PhotoLibrary.Core.Layout.FolderMap(db, report.LibraryRoot), null, CancellationToken.None);
         Assert.Equal(1, imported);
         var missing = report.Items.Single(i => i.Status == MatchStatus.Missing);
         Assert.NotNull(missing.ImportedTo);

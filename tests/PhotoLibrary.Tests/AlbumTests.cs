@@ -8,7 +8,7 @@ using Xunit;
 namespace PhotoLibrary.Tests;
 
 /// <summary>
-/// Virtual albums only touch the database; physical albums are folders under _Albums that files really move
+/// Virtual albums only touch the database; physical albums are top-level folders that files really move
 /// into and out of, with one physical album per photo.
 /// </summary>
 public class AlbumTests : IDisposable
@@ -35,6 +35,7 @@ public class AlbumTests : IDisposable
     private MediaRecord Photo(string name, DateTime? taken)
     {
         var dir = taken is { } t ? Path.Combine(Lib, DateRules.DatedFolder(t)) : Path.Combine(Lib, LibraryFolders.Undated);
+        if (taken is { } y) _db.AddDateFolders([y.Year.ToString("D4")]); // as if Keepsake had filed it there
         Directory.CreateDirectory(dir);
         var path = Path.Combine(dir, name);
         File.WriteAllBytes(path, [1, 2, 3]);
@@ -61,7 +62,7 @@ public class AlbumTests : IDisposable
         Assert.Equal([a.Id], _db.GetAlbumItems(holiday.Id).Select(r => r.Id));
         Assert.Equal(1, _db.GetAlbum(best.Id)!.Count);
         Assert.Equal(new[] { holiday.Id, best.Id }.OrderBy(x => x), _db.AlbumsOf([a.Id])[a.Id].OrderBy(x => x));
-        Assert.False(Directory.Exists(_albums.AlbumsDir));
+        Assert.Single(Directory.GetDirectories(Lib)); // just the date folder: virtual albums make no folders
 
         _albums.Remove(holiday, [a]);
         Assert.Empty(_db.GetAlbumItems(holiday.Id));
@@ -80,7 +81,7 @@ public class AlbumTests : IDisposable
 
         var change = _albums.Add(wedding, [a, b]);
         Assert.Equal(2, change.Moved);
-        var folder = Path.Combine(Lib, "_Albums", "Wedding_ Sam & Alex");
+        var folder = Path.Combine(Lib, "Wedding_ Sam & Alex");
         Assert.True(File.Exists(Path.Combine(folder, "a.jpg")));
         Assert.True(File.Exists(Path.Combine(folder, "b.jpg")));
         Assert.Equal(Path.Combine(folder, "a.jpg"), _db.GetAlbum(wedding.Id) is { } w ? _db.GetAlbumItems(w.Id)[0].Path : null);
@@ -89,7 +90,7 @@ public class AlbumTests : IDisposable
 
         // Moving into a second physical album takes it out of the first.
         _albums.Add(party, [a]);
-        Assert.True(File.Exists(Path.Combine(Lib, "_Albums", "Party", "a.jpg")));
+        Assert.True(File.Exists(Path.Combine(Lib, "Party", "a.jpg")));
         Assert.False(File.Exists(Path.Combine(folder, "a.jpg")));
         Assert.Equal([b.Id], _db.GetAlbumItems(wedding.Id).Select(r => r.Id));
         Assert.Equal([a.Id], _db.GetAlbumItems(party.Id).Select(r => r.Id));
@@ -99,7 +100,7 @@ public class AlbumTests : IDisposable
         _albums.Remove(wedding, [b]);
         Assert.True(File.Exists(Path.Combine(Lib, DateRules.DatedFolder(Day), "a.jpg")));
         Assert.True(File.Exists(Path.Combine(Lib, LibraryFolders.Undated, "b.jpg")));
-        Assert.False(Directory.Exists(Path.Combine(Lib, "_Albums", "Party"))); // emptied folders are pruned
+        Assert.True(Directory.Exists(Path.Combine(Lib, "Party"))); // an emptied album keeps its folder
         Assert.Empty(_db.GetAlbumItems(party.Id));
     }
 
@@ -111,13 +112,13 @@ public class AlbumTests : IDisposable
         _albums.Add(album, [a]);
 
         _albums.SetKind(album, AlbumKind.Physical);
-        Assert.True(File.Exists(Path.Combine(Lib, "_Albums", "Trip", "a.jpg")));
+        Assert.True(File.Exists(Path.Combine(Lib, "Trip", "a.jpg")));
 
         _albums.Rename(album, "Road trip");
-        Assert.True(File.Exists(Path.Combine(Lib, "_Albums", "Road trip", "a.jpg")));
-        Assert.False(Directory.Exists(Path.Combine(Lib, "_Albums", "Trip")));
+        Assert.True(File.Exists(Path.Combine(Lib, "Road trip", "a.jpg")));
+        Assert.False(Directory.Exists(Path.Combine(Lib, "Trip")));
         Assert.Equal("Road trip", _db.GetAlbum(album.Id)!.Name);
-        Assert.Equal(Path.Combine(Lib, "_Albums", "Road trip", "a.jpg"), _db.GetAlbumItems(album.Id)[0].Path);
+        Assert.Equal(Path.Combine(Lib, "Road trip", "a.jpg"), _db.GetAlbumItems(album.Id)[0].Path);
 
         _albums.SetKind(album, AlbumKind.Virtual);
         Assert.True(File.Exists(Path.Combine(Lib, DateRules.DatedFolder(Day), "a.jpg")));
@@ -127,7 +128,7 @@ public class AlbumTests : IDisposable
         _albums.Delete(album);
         Assert.Null(_db.GetAlbum(album.Id));
         Assert.True(File.Exists(Path.Combine(Lib, DateRules.DatedFolder(Day), "a.jpg"))); // nothing deleted from disk
-        Assert.False(Directory.Exists(Path.Combine(Lib, "_Albums", "Road trip")));
+        Assert.False(Directory.Exists(Path.Combine(Lib, "Road trip")));
     }
 
     [Fact]
@@ -146,13 +147,13 @@ public class AlbumTests : IDisposable
         _db.Upsert(x);
         library.Add(x);
 
-        Assert.True(_albums.SyncPhysical(library));
+        Assert.True(_albums.SyncFolders(library));
         var albums = _db.GetAlbums();
         var fromExplorer = Assert.Single(albums, a => a.Name == "From Explorer");
         Assert.True(fromExplorer.IsPhysical);
         Assert.Equal([x.Id], _db.GetAlbumItems(fromExplorer.Id).Select(r => r.Id));
         Assert.Empty(_db.GetAlbumItems(album.Id));
-        Assert.False(_albums.SyncPhysical(library)); // settled
+        Assert.False(_albums.SyncFolders(library)); // settled
     }
 
     [Fact]
@@ -166,10 +167,10 @@ public class AlbumTests : IDisposable
         _db.Upsert(new MediaRecord { Path = loose, Sha256 = new string('b', 64), Size = 3, MTime = 1, Kind = MediaKind.Image, InLibrary = true, Taken = Day, Added = DateTime.Now });
 
         var records = _db.GetLibrary();
-        Assert.True(Organizer.NeedsOrganising(records, Lib));
-        var plan = Organizer.Plan(Lib, new ScanResult { Records = records, OtherFiles = [] }, useMtime: false);
+        Assert.True(Organizer.NeedsOrganising(records, _albums.Folders()));
+        var plan = Organizer.Plan(new ScanResult { Records = records, OtherFiles = [] }, useMtime: false, _albums.Folders());
         Assert.Single(plan.Items);
         Assert.Equal(loose, plan.Items[0].Record.Path);
-        Assert.True(Organizer.NeedsOrganising(records.Where(r => r.Path != loose), Lib) == false);
+        Assert.False(Organizer.NeedsOrganising(records.Where(r => r.Path != loose), _albums.Folders()));
     }
 }

@@ -68,22 +68,26 @@ public partial class OrganiseViewModel(AppState state, MainViewModel main) : Vie
         {
             var scan = await state.Scanner.IndexTreeAsync(state.LibraryRoot, LibraryFolders.ExcludedFromIndex, true, Progress, _cts.Token);
             state.Library = scan.Records;
-            var plan = await Task.Run(() => Organizer.Plan(state.LibraryRoot, scan, UseModifiedTime), _cts.Token);
+            var map = state.Albums.Folders();
+            var plan = await Task.Run(() => Organizer.Plan(scan, UseModifiedTime, map), _cts.Token);
             _plan = plan;
             var bySource = string.Join("\n", plan.BySource.OrderByDescending(k => k.Value).Select(k => $"        {k.Value:N0} dated by {DateSources.Describe(k.Key)}"));
             var other = plan.OtherFiles.Count == 0 ? "" :
                 "\nLeft where they are (not media): " + string.Join(", ", plan.OtherFiles.OrderByDescending(k => k.Value).Select(k => $"{k.Key} ×{k.Value}"));
+            if (plan.Blocked.Count > 0)
+                other += "\nLeft where they are because their date folder is an album: " +
+                         string.Join(", ", plan.Blocked.OrderBy(k => k.Key).Select(k => $"{k.Key} ×{k.Value:N0}")) +
+                         ". Change the folder in Settings › Library folders, or pick another date layout.";
             SummaryText = $"{plan.Total:N0} photos and videos in the library, {plan.Settled:N0} already in place.\n\n" +
-                          $"   {plan.Moves:N0} will move into YYYY\\YYYY_MM\\YYYY_MM_DD folders\n{bySource}\n" +
+                          $"   {plan.Moves:N0} will move into date folders like {map.Dates.Example}\n{bySource}\n" +
                           $"   {plan.Renamed:N0} of those get a _1/_2 suffix because another file with the same name lands on the same day\n" +
-                          $"   {plan.Duplicates:N0} exact duplicates → {LibraryFolders.Duplicates}\\ (kept for you to review, nothing is deleted)\n" +
                           $"   {plan.Undated:N0} with no capture date → {LibraryFolders.Undated}\\" +
                           (UseModifiedTime || plan.Undated == 0 ? "" : "   (tick 'use file modified time' to date these instead)") + other;
             const int limit = 3000;
             foreach (var item in plan.Items.Take(limit))
                 Rows.Add(new PlanRowViewModel(item.Action.ToString(), Path.GetRelativePath(plan.Root, item.Record.Path),
                     Path.GetRelativePath(plan.Root, item.Dest),
-                    item.Action == OrganiseAction.Duplicate ? "same as " + Path.GetRelativePath(plan.Root, item.DuplicateOf ?? "") : DateSources.Describe(item.DateSource)));
+                    DateSources.Describe(item.DateSource)));
             PlanTruncated = plan.Items.Count > limit;
             HasPlan = true;
             StatusText = plan.Items.Count == 0 ? "Nothing to do — the library is already organised." : "Preview ready. Tick the box and press Organise to apply.";

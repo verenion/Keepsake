@@ -207,7 +207,7 @@ public class CleanupTests : IDisposable
         var item = Assert.Single(report.Items);
         Assert.Equal(MatchStatus.Present, item.Status);
         Assert.Contains("removed from the library", item.How);
-        Assert.Equal(0, await importer.ImportAsync(report, null, CancellationToken.None));
+        Assert.Equal(0, await importer.ImportAsync(report, new PhotoLibrary.Core.Layout.FolderMap(db, report.LibraryRoot), null, CancellationToken.None));
 
         // Restore brings it back.
         Assert.Equal(1, db.RestoreHidden());

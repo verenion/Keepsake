@@ -32,13 +32,32 @@ public static class AppPaths
 /// <summary>Reserved top-level folders inside the library.</summary>
 public static class LibraryFolders
 {
+    /// <summary>
+    /// Where Organise used to move exact duplicates. No longer used, but kept out of the scan and reserved so an
+    /// old one isn't mistaken for an album, and so undoing an old Organise run can still bring files back.
+    /// </summary>
     public const string Duplicates = "_Duplicates";
     public const string Undated = "_Undated";
     public const string Logs = "_Logs";
-    /// <summary>Physical albums live here, one sub-folder each; Organise leaves them where they are.</summary>
-    public const string Albums = "_Albums";
+    /// <summary>
+    /// Where folder albums used to live. Albums already here keep working; new folder albums are top-level
+    /// folders of the library.
+    /// </summary>
+    public const string LegacyAlbums = "_Albums";
     /// <summary>Encrypted vaults (secure albums), one sub-folder each. Never scanned, indexed or organised.</summary>
     public const string Vault = "_Vault";
 
     public static readonly HashSet<string> ExcludedFromIndex = new(StringComparer.OrdinalIgnoreCase) { Duplicates, Logs, Vault };
+
+    /// <summary>Keepsake's own top-level folders.</summary>
+    public static readonly HashSet<string> Reserved = new(StringComparer.OrdinalIgnoreCase) { Duplicates, Undated, Logs, Vault, LegacyAlbums };
+
+    /// <summary>The top-level folder <paramref name="path"/> is in, or null for a file directly in the library root.</summary>
+    public static string? TopOf(string root, string path)
+    {
+        var rel = Path.GetRelativePath(root, path);
+        if (rel.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(rel)) return null;
+        var sep = rel.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]);
+        return sep <= 0 ? null : rel[..sep];
+    }
 }

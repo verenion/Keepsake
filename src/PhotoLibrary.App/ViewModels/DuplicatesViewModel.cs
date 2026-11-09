@@ -4,7 +4,9 @@ using CommunityToolkit.Mvvm.Input;
 using PhotoLibrary.AI;
 using PhotoLibrary.AI.Features;
 using PhotoLibrary.App.Services;
+using PhotoLibrary.Core;
 using PhotoLibrary.Core.Db;
+using PhotoLibrary.Core.Layout;
 
 namespace PhotoLibrary.App.ViewModels;
 
@@ -39,6 +41,17 @@ public partial class DuplicatesViewModel : ViewModelBase
     [ObservableProperty] public partial bool HasGroups { get; set; }
     [ObservableProperty] public partial int MarkedCount { get; set; }
     [ObservableProperty] public partial string MarkedText { get; set; } = "";
+
+    /// <summary>A top-level folder some of the duplicates are in, for "keep the copies in this folder".</summary>
+    public sealed record FolderChoice(string Key, string Label);
+
+    public ObservableCollection<FolderChoice> FolderChoices { get; } = [];
+    [ObservableProperty] public partial FolderChoice? KeepFolder { get; set; }
+    public bool HasFolderChoices => FolderChoices.Count > 1;
+
+    private const string RootKey = "";
+
+    private string FolderKey(MediaRecord r) => LibraryFolders.TopOf(_main.State.LibraryRoot, r.Path) ?? RootKey;
 
     public string ModelNote => Ai.DuplicatesCanUseModel()
         ? ""
@@ -102,23 +115,31 @@ public partial class DuplicatesViewModel : ViewModelBase
     {
         Clear();
         var root = _main.State.LibraryRoot;
+        var map = _main.State.Albums.Folders();
+        var inVirtual = _main.State.Db.AlbumsOf(sets.SelectMany(s => s.Records).Select(r => r.Id));
+        bool InAlbum(MediaRecord r) => map.IsInFolderAlbum(r.Path) || inVirtual.ContainsKey(r.Id);
         foreach (var set in sets)
         {
+            // Records come best quality first; prefer a copy that's in an album (see KeepChoice).
+            var keep = KeepChoice.Choose(set.Records, set.Level == DuplicateLevel.Identical, InAlbum);
             var items = set.Records.Select((r, i) =>
             {
                 var photo = new PhotoViewModel(r, _main, SelectInGroups);
-                var item = new ReviewItemViewModel(photo, i == 0 ? "Keep (best copy)" : "Remove", ReviewItemViewModel.DescribeFile(r, root)) { Marked = i > 0 };
-                item.MarkedChanged += _ => UpdateMarked();
+                var caption = i != keep ? "Remove" : InAlbum(r) && keep != 0 ? "Keep (in an album)" : InAlbum(r) ? "Keep (best copy, in an album)" : "Keep (best copy)";
+                var item = new ReviewItemViewModel(photo, caption, ReviewItemViewModel.DescribeFile(r, root)) { Marked = i != keep, Suggested = i == keep };
+                item.MarkedChanged += changed => { changed.Caption = changed.Marked ? "Remove" : "Keep"; UpdateMarked(); };
                 return item;
-            });
+            }).ToList();
             var accent = set.Level switch { DuplicateLevel.Identical => "#2E9E4F", DuplicateLevel.SamePicture => "#8DB600", DuplicateLevel.NearIdentical => "#E0A000", _ => "#D9480F" };
             Groups.Add(new ReviewGroupViewModel($"{set.Records.Count} × {set.Reason}", $"{Formatting.Bytes(set.ReclaimableBytes)} reclaimable", items, accent));
         }
         HasGroups = Groups.Count > 0;
+        BuildFolderChoices(map);
         var files = sets.Sum(s => s.Records.Count);
         var bytes = sets.Sum(s => s.ReclaimableBytes);
         Summary = sets.Count == 0 ? "No duplicates at this level." : $"{sets.Count:N0} groups  ·  {files:N0} files  ·  {Formatting.Bytes(bytes)} reclaimable";
-        Status = sets.Count == 0 ? "Nothing found. Try a looser level." : "The best copy in each group is kept; the rest are ticked. Untick anything you want to keep.";
+        Status = sets.Count == 0 ? "Nothing found. Try a looser level."
+            : "In each group the best copy is kept (a copy in an album wins when nothing is lost) and the rest are ticked. Untick anything you want to keep.";
         UpdateMarked();
     }
 
@@ -139,7 +160,58 @@ public partial class DuplicatesViewModel : ViewModelBase
     [RelayCommand]
     private void MarkAllButBest()
     {
-        foreach (var g in Groups) for (var i = 0; i < g.Items.Count; i++) g.Items[i].Marked = i > 0;
+        foreach (var g in Groups)
+        {
+            if (!g.Items.Any(i => i.Suggested)) { for (var i = 0; i < g.Items.Count; i++) g.Items[i].Marked = i > 0; continue; }
+            foreach (var i in g.Items) i.Marked = !i.Suggested;
+        }
+    }
+
+    /// <summary>Top-level folders that hold a copy in at least one group, busiest first.</summary>
+    private void BuildFolderChoices(FolderMap map)
+    {
+        FolderChoices.Clear();
+        var counts = Groups
+            .SelectMany(g => g.Items.Select(i => FolderKey(i.Record)).Distinct(StringComparer.OrdinalIgnoreCase))
+            .GroupBy(k => k, StringComparer.OrdinalIgnoreCase)
+            .Select(g => (Key: g.Key, Groups: g.Count()))
+            .OrderByDescending(x => x.Groups).ThenBy(x => x.Key, StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, n) in counts)
+        {
+            var what = key == RootKey ? "loose in the library folder"
+                : map.RoleOf(key) switch
+                {
+                    FolderRole.Date => "date folder",
+                    FolderRole.Album => "folder album",
+                    FolderRole.Keepsake => "Keepsake folder",
+                    _ => "folder",
+                };
+            var name = key == RootKey ? "Library root" : key;
+            FolderChoices.Add(new FolderChoice(key, $"{name}  ({what}, in {n:N0} group{(n == 1 ? "" : "s")})"));
+        }
+        KeepFolder = FolderChoices.FirstOrDefault(c => c.Key != RootKey && map.IsInFolderAlbum(Path.Combine(map.Root, c.Key, "x")))
+                     ?? FolderChoices.FirstOrDefault();
+        OnPropertyChanged(nameof(HasFolderChoices));
+    }
+
+    /// <summary>In every group with a copy in the chosen folder, keep that copy and tick the rest.</summary>
+    [RelayCommand]
+    private void KeepFromFolder()
+    {
+        if (KeepFolder is not { } folder) return;
+        var changed = 0;
+        foreach (var g in Groups)
+        {
+            // Items are best quality first, so the first copy in the folder is the one to keep.
+            var keep = g.Items.FirstOrDefault(i => string.Equals(FolderKey(i.Record), folder.Key, StringComparison.OrdinalIgnoreCase));
+            if (keep is null) continue;
+            // A RAW is never ticked in favour of a non-RAW copy (the RAW + JPEG promise on the left).
+            var keepIsRaw = MediaKinds.IsRaw(keep.Record.Path);
+            foreach (var i in g.Items) i.Marked = !ReferenceEquals(i, keep) && (keepIsRaw || !MediaKinds.IsRaw(i.Record.Path));
+            changed++;
+        }
+        var name = folder.Key == RootKey ? "the library folder itself" : folder.Key;
+        Status = $"Keeping the copy in {name} in {changed:N0} group{(changed == 1 ? "" : "s")}; the other copies are ticked. Groups without a copy there are unchanged.";
     }
 
     [RelayCommand]
@@ -180,5 +252,8 @@ public partial class DuplicatesViewModel : ViewModelBase
     {
         foreach (var i in AllItems) i.Photo.ReleaseThumbnail();
         Groups.Clear();
+        FolderChoices.Clear();
+        KeepFolder = null;
+        OnPropertyChanged(nameof(HasFolderChoices));
     }
 }

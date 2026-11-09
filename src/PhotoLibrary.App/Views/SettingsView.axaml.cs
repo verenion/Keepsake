@@ -16,6 +16,25 @@ public partial class SettingsView : UserControl
         if (DataContext is SettingsViewModel vm) vm.RefreshFfmpeg();
     }
 
+    private async void ReviewFoldersClick(object? sender, RoutedEventArgs e)
+    {
+        if (TopLevel.GetTopLevel(this) is not MainWindow window || window.DataContext is not MainViewModel main) return;
+        if (main.IsBusy) return;
+        await FolderReviewWindow.ShowAsync(window, main, onlyUndecided: false);
+    }
+
+    private async void ChooseBackupFolderClick(object? sender, RoutedEventArgs e)
+    {
+        if (TopLevel.GetTopLevel(this) is not MainWindow window || window.DataContext is not MainViewModel main) return;
+        var folder = await window.PickFolderAsync("Choose where backups go", main.Backup.Folder);
+        if (folder is not null) main.Backup.SetFolder(folder);
+    }
+
+    private void CancelBackupClick(object? sender, RoutedEventArgs e)
+    {
+        if (TopLevel.GetTopLevel(this)?.DataContext is MainViewModel main) main.Backup.Cancel();
+    }
+
     private async void ChangeLibraryClick(object? sender, RoutedEventArgs e)
     {
         if (TopLevel.GetTopLevel(this) is not MainWindow window || window.DataContext is not MainViewModel main) return;

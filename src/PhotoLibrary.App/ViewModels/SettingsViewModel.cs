@@ -33,6 +33,9 @@ public partial class SettingsViewModel : ViewModelBase
     private CancellationTokenSource? _downloadCts;
 
     private AppState State => _main.State;
+
+    /// <summary>The backup card; owned by the main view model so its schedule runs on every tab.</summary>
+    public BackupViewModel Backup => _main.Backup;
     private AppSettings Settings => State.Settings;
     private AiEngine Ai => State.Ai;
 
@@ -47,6 +50,7 @@ public partial class SettingsViewModel : ViewModelBase
         ThumbSize = ThumbSizeOptions.FirstOrDefault(o => o.Size == State.Thumbs.Size) ?? ThumbSizeOptions[1];
         ThumbQuality = State.Thumbs.Quality;
         Theme = ThemeOptions.FirstOrDefault(t => t.Key == Settings.Theme) ?? ThemeOptions[0];
+        DateLayout = Settings.DateLayout;
         TileSize = Settings.TileSize;
         foreach (var d in GpuDevices.List()) Gpus.Add(d);
         HasGpu = Gpus.Count > 0;
@@ -335,6 +339,22 @@ public partial class SettingsViewModel : ViewModelBase
                 "Keepsake will close, install the update and reopen. Any scan, import or indexing in progress stops and resumes next time, and unlocked vaults lock.",
                 "Restart now")) return;
         _updater.ApplyAndRestart();
+    }
+
+    // ---- library folders
+
+    public PhotoLibrary.Core.Layout.DateLayout[] DateLayouts { get; } = PhotoLibrary.Core.Layout.DateLayout.All;
+
+    [ObservableProperty] public partial PhotoLibrary.Core.Layout.DateLayout? DateLayout { get; set; }
+
+    partial void OnDateLayoutChanged(PhotoLibrary.Core.Layout.DateLayout? value)
+    {
+        if (value is null || value == Settings.DateLayout) return;
+        Settings.DateLayout = value;
+        _main.RefreshFolderState();
+        _main.StatusText = _main.NeedsOrganise
+            ? $"Date folders now look like {value.Example}. Run Organise to re-file photos already in date folders."
+            : $"Date folders now look like {value.Example}.";
     }
 
     // ---- theme

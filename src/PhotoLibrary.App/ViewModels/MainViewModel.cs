@@ -30,6 +30,7 @@ public partial class MainViewModel : ViewModelBase
         Albums = new AlbumsViewModel(this);
         Duplicates = new DuplicatesViewModel(this);
         Quality = new QualityViewModel(this);
+        Backup = new BackupViewModel(this);
         Settings = new SettingsViewModel(this);
         OnAlbumsChanged();
     }
@@ -40,6 +41,7 @@ public partial class MainViewModel : ViewModelBase
     public DuplicatesViewModel Duplicates { get; }
     public QualityViewModel Quality { get; }
     public SettingsViewModel Settings { get; }
+    public BackupViewModel Backup { get; }
 
     /// <summary>Tab indices in MainWindow: Library, Albums, AI Tools, Duplicates, Quality, Settings.</summary>
     public const int LibraryTab = 0, AlbumsTab = 1, AiTab = 2, DuplicatesTab = 3, QualityTab = 4, SettingsTab = 5;
@@ -134,7 +136,7 @@ public partial class MainViewModel : ViewModelBase
         {
             var result = await State.Scanner.IndexTreeAsync(State.LibraryRoot, LibraryFolders.ExcludedFromIndex, true, NewProgress(), _scanCts.Token);
             State.Library = result.Records;
-            NeedsOrganise = Organizer.NeedsOrganising(result.Records, State.LibraryRoot);
+            NeedsOrganise = Organizer.NeedsOrganising(result.Records, State.Albums.Folders());
             UpdateNeedsFfmpeg();
             RefreshTree();
             var bytes = result.Records.Sum(r => r.Size);
@@ -144,6 +146,7 @@ public partial class MainViewModel : ViewModelBase
                 : "Library scanned.";
             Ai.Refresh();
             Albums.OnLibraryScanned(result.Records);
+            RefreshFolderState();
         }
         catch (OperationCanceledException)
         {
@@ -347,7 +350,25 @@ public partial class MainViewModel : ViewModelBase
             SelectedPhoto = null;
             SelectedPhoto = keep;
         }
-        NeedsOrganise = Organizer.NeedsOrganising(State.Library, State.LibraryRoot);
+        NeedsOrganise = Organizer.NeedsOrganising(State.Library, State.Albums.Folders());
+    }
+
+    /// <summary>Top-level folders named like dates that the user hasn't yet called dates or albums.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasUndecidedFolders), nameof(UndecidedFoldersText))]
+    public partial int UndecidedFolders { get; set; }
+
+    public bool HasUndecidedFolders => UndecidedFolders > 0;
+
+    public string UndecidedFoldersText => UndecidedFolders == 1
+        ? "1 folder looks like a date: is it a date folder or an album?"
+        : $"{UndecidedFolders:N0} folders look like dates: are they date folders or albums?";
+
+    /// <summary>Re-reads folder roles (after a scan, or a change in Settings) and the Organise hint.</summary>
+    public void RefreshFolderState()
+    {
+        var map = State.Albums.Folders();
+        UndecidedFolders = map.Survey(State.Library).Count(f => f.Role == PhotoLibrary.Core.Layout.FolderRole.Undecided);
+        NeedsOrganise = Organizer.NeedsOrganising(State.Library, map);
     }
 
     private void NotifySelectionCommands()

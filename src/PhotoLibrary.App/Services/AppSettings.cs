@@ -139,6 +139,45 @@ public sealed class AppSettings
         set { _tileSize = value; Set("tile_size", value); }
     }
 
+    // ---- library folders
+
+    /// <summary>How dated folders are laid out. Changing it re-files date folders on the next Organise.</summary>
+    public PhotoLibrary.Core.Layout.DateLayout DateLayout
+    {
+        get => PhotoLibrary.Core.Layout.DateLayout.Find(_db.GetSetting(PhotoLibrary.Core.Layout.FolderMap.SettingKey));
+        set => _db.SetSetting(PhotoLibrary.Core.Layout.FolderMap.SettingKey, value.Id);
+    }
+
+    // ---- backup
+
+    /// <summary>Folder backups go to, or null when backup isn't set up.</summary>
+    public string? BackupFolder
+    {
+        get => _db.GetSetting("backup_folder") is { Length: > 0 } f ? f : null;
+        set => _db.SetSetting("backup_folder", value ?? "");
+    }
+
+    /// <summary>"manual", "startup", "daily" or "weekly".</summary>
+    public string BackupSchedule
+    {
+        get => _db.GetSetting("backup_schedule") is "manual" or "startup" or "weekly" ? _db.GetSetting("backup_schedule")! : "daily";
+        set => _db.SetSetting("backup_schedule", value);
+    }
+
+    /// <summary>When the last backup finished without errors.</summary>
+    public DateTime? LastBackupUtc
+    {
+        get => DateTime.TryParse(_db.GetSetting("backup_last_ok"), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var t) ? t : null;
+        set => _db.SetSetting("backup_last_ok", value?.ToString("O", CultureInfo.InvariantCulture) ?? "");
+    }
+
+    /// <summary>One-line outcome of the last backup attempt, successful or not.</summary>
+    public string? LastBackupSummary
+    {
+        get => _db.GetSetting("backup_last_summary") is { Length: > 0 } s ? s : null;
+        set => _db.SetSetting("backup_last_summary", value ?? "");
+    }
+
     private float GetFloat(string key, float fallback) =>
         float.TryParse(_db.GetSetting(key), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : fallback;
 

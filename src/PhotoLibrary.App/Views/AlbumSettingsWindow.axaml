@@ -80,6 +80,12 @@
             <TextBox x:Name="NewPasswordBox" PasswordChar="●" Watermark="Password (at least 8 characters)" />
             <TextBox x:Name="ConfirmPasswordBox" PasswordChar="●" Watermark="Type it again" />
         </StackPanel>
+        <CheckBox x:Name="OrganiseBox" Margin="0,8,0,0" IsVisible="False">
+            <StackPanel>
+                <TextBlock Text="Organise this folder" FontWeight="SemiBold" />
+                <TextBlock Classes="hint" Text="When on, Organise moves this folder's photos into the date folders like any loose file. Leave it off for a folder another app writes to, such as a phone's Camera Roll, so its files are never moved." />
+            </StackPanel>
+        </CheckBox>
         <Border x:Name="KindWarning" Background="{DynamicResource KsWarnBrush}" CornerRadius="4" Padding="10,6" Margin="0,8,0,0" IsVisible="False">
             <TextBlock x:Name="KindWarningText" TextWrapping="Wrap" FontSize="12" />
         </Border>

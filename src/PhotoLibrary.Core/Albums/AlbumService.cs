@@ -1,4 +1,5 @@
 using PhotoLibrary.Core.Db;
+using PhotoLibrary.Core.Layout;
 using PhotoLibrary.Core.Organise;
 using PhotoLibrary.Core.Scanning;
 using PhotoLibrary.Core.Vault;
@@ -12,20 +13,38 @@ public sealed record AlbumChange(int Added, int Removed, int Moved, List<(long I
 }
 
 /// <summary>
-/// Album membership plus the file moves a physical album implies. A physical album is the folder
-/// <c>&lt;library&gt;\_Albums\&lt;name&gt;</c>: adding a photo moves its file there (out of any other physical
-/// album), removing it moves the file back into its dated folder. Rows keep their ids throughout, so AI
+/// Album membership plus the file moves a physical album implies. A physical album is a top-level folder of
+/// the library (or, for albums made by older versions, <c>_Albums\&lt;name&gt;</c>): adding a photo moves its
+/// file there (out of any other physical album), removing it moves the file back into its dated folder. Rows keep their ids throughout, so AI
 /// vectors, thumbnails and virtual-album membership survive the move.
 /// </summary>
 public sealed class AlbumService(LibraryDb db, string libraryRoot)
 {
     public string Root { get; } = Path.GetFullPath(libraryRoot);
 
-    public string AlbumsDir => Path.Combine(Root, LibraryFolders.Albums);
+    /// <summary>A fresh snapshot of which top-level folders are dates and which are albums.</summary>
+    public FolderMap Folders() => new(db, Root);
 
-    public string FolderFor(Album album) => album.IsSecure && album.VaultId is { } v
-        ? VaultStore.FolderFor(Root, v)
-        : Path.Combine(AlbumsDir, Album.FolderName(album.Name));
+    public string FolderFor(Album album)
+    {
+        if (album.IsSecure && album.VaultId is { } v) return VaultStore.FolderFor(Root, v);
+        var name = Album.FolderName(album.Name);
+        var legacy = Path.Combine(Root, LibraryFolders.LegacyAlbums, name);
+        return Directory.Exists(legacy) ? legacy : Path.Combine(Root, name);
+    }
+
+    /// <summary>Why a folder album can't be called <paramref name="name"/>, or null when it can.</summary>
+    public string? FolderProblem(string name, Album? except = null)
+    {
+        var folder = Album.FolderName(name);
+        if (except is not null && Scanner.PathComparer.Equals(folder, Album.FolderName(except.Name))) return null;
+        return Folders().RoleOf(folder) switch
+        {
+            FolderRole.Date => $"“{folder}” is a date folder in the library. Choose another name, or make it an album in Settings › Library folders.",
+            FolderRole.Keepsake => $"“{folder}” is one of Keepsake's own folders. Choose another name.",
+            _ => null,
+        };
+    }
 
     public bool IsInFolder(Album album, string path) => IsUnder(path, FolderFor(album));
 
@@ -38,8 +57,7 @@ public sealed class AlbumService(LibraryDb db, string libraryRoot)
     /// <summary>Where a file belongs once it leaves every physical album: its dated folder, or _Undated.</summary>
     public string HomeFor(MediaRecord r) => HomeFor(r.Taken, r.FileName);
 
-    public string HomeFor(DateTime? taken, string fileName) =>
-        taken is { } t ? Path.Combine(Root, DateRules.DatedFolder(t), fileName) : Path.Combine(Root, LibraryFolders.Undated, fileName);
+    public string HomeFor(DateTime? taken, string fileName) => Folders().HomeFor(taken, fileName);
 
     public Album Create(string name, AlbumKind kind, string? colour = null, string? password = null)
     {
@@ -48,6 +66,7 @@ public sealed class AlbumService(LibraryDb db, string libraryRoot)
             if (string.IsNullOrEmpty(password)) throw new ArgumentException("A secure album needs a password.", nameof(password));
             return db.CreateAlbum(name, kind, colour, VaultStore.Create(Root, password));
         }
+        if (kind == AlbumKind.Physical && FolderProblem(name) is { } problem) throw new InvalidOperationException(problem);
         var album = db.CreateAlbum(name, kind, colour);
         if (album.IsPhysical) Directory.CreateDirectory(FolderFor(album));
         return album;
@@ -95,11 +114,12 @@ public sealed class AlbumService(LibraryDb db, string libraryRoot)
         var relocated = new List<(long, string)>();
         if (album.IsPhysical)
         {
+            if (FolderProblem(newName, album) is { } problem) return new AlbumChange(0, 0, 0, [], [problem]);
             var oldDir = FolderFor(album);
-            var newDir = Path.Combine(AlbumsDir, Album.FolderName(newName));
+            var newDir = Path.Combine(Path.GetDirectoryName(oldDir)!, Album.FolderName(newName));
             if (!Scanner.PathComparer.Equals(oldDir, newDir) && Directory.Exists(oldDir))
             {
-                if (Directory.Exists(newDir)) return new AlbumChange(0, 0, 0, [], [$"A folder called “{Path.GetFileName(newDir)}” already exists in {LibraryFolders.Albums}."]);
+                if (Directory.Exists(newDir)) return new AlbumChange(0, 0, 0, [], [$"A folder called “{Path.GetFileName(newDir)}” already exists in the library."]);
                 Directory.Move(oldDir, newDir);
                 foreach (var r in db.GetUnder(oldDir))
                 {
@@ -120,12 +140,14 @@ public sealed class AlbumService(LibraryDb db, string libraryRoot)
         if (album.Kind == kind) return AlbumChange.None;
         if (album.IsSecure || kind == AlbumKind.Secure)
             throw new InvalidOperationException("Use MakeSecure to turn an album into a vault; a vault is left by deleting it, which restores its photos.");
+        if (kind == AlbumKind.Physical && FolderProblem(album.Name) is { } problem) return new AlbumChange(0, 0, 0, [], [problem]);
         var members = db.GetAlbumItems(album.Id);
+        var folder = FolderFor(album);
         album.Kind = kind;
         db.UpdateAlbum(album);
         if (kind == AlbumKind.Virtual)
         {
-            var (moved, relocated, errors) = MoveHome(members.Where(r => IsUnder(r.Path, AlbumsDir)).ToList());
+            var (moved, relocated, errors) = MoveHome(members.Where(r => IsUnder(r.Path, folder)).ToList());
             TryDeleteEmpty(FolderFor(album));
             return new AlbumChange(0, 0, moved, relocated, errors.Select(e => e.Message).ToList());
         }
@@ -189,8 +211,7 @@ public sealed class AlbumService(LibraryDb db, string libraryRoot)
             }
         }
         if (vaulted.Count > 0) db.ForgetFiles(vaulted);
-        Organizer.PruneEmptyDirs(Root, touched.Where(d => IsUnder(d, Path.Combine(Root, LibraryFolders.Albums))
-            || IsUnder(d, Path.Combine(Root, LibraryFolders.Undated))));
+        Organizer.PruneEmptyDirs(Root, touched, Folders().KeepWhenEmpty);
         progress?.Report((records.Count, records.Count, ""));
         return new VaultChange(vaulted, errors);
     }
@@ -220,13 +241,14 @@ public sealed class AlbumService(LibraryDb db, string libraryRoot)
     public (List<string> Restored, List<string> Errors) RestoreFromVault(byte[] key, IReadOnlyList<VaultItem> items)
     {
         var alloc = new DestAllocator();
+        var map = Folders();
         var restored = new List<string>();
         var errors = new List<string>();
         foreach (var item in items)
         {
             try
             {
-                var dest = alloc.Claim(HomeFor(item.Info.Taken, item.Info.OriginalName));
+                var dest = alloc.Claim(map.HomeFor(item.Info.Taken, item.Info.OriginalName));
                 Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
                 VaultStore.Export(item, key, dest);
                 VaultStore.Delete(item);
@@ -265,22 +287,53 @@ public sealed class AlbumService(LibraryDb db, string libraryRoot)
     }
 
     /// <summary>
-    /// After a rescan: every file sitting in a physical album's folder is a member (the user may have dropped
-    /// it there in Explorer), members that left the folder are not, and a folder under _Albums with no album
-    /// row becomes a physical album. Returns true when anything changed.
+    /// After a rescan, brings albums in line with the folders on disk:
+    /// <list type="bullet">
+    /// <item>a top-level folder made outside Keepsake that holds photos becomes a folder album, with Organise off;
+    /// a folder named like a date is left undecided for the user instead;</item>
+    /// <item>a folder under the old <c>_Albums</c> folder with no album row becomes one too;</item>
+    /// <item>a folder album whose folder is gone and that has no photos left is removed, and date folders that
+    /// no longer exist are forgotten;</item>
+    /// <item>every file in a folder album's folder is a member, and members that left the folder are not.</item>
+    /// </list>
+    /// Returns true when anything changed.
     /// </summary>
-    public bool SyncPhysical(IReadOnlyList<MediaRecord> library)
+    public bool SyncFolders(IReadOnlyList<MediaRecord> library)
     {
         var changed = false;
         var albums = db.GetAlbums();
-        if (Directory.Exists(AlbumsDir))
+        var legacyDir = Path.Combine(Root, LibraryFolders.LegacyAlbums);
+        var known = new HashSet<string>(albums.Where(a => a.IsPhysical).Select(a => Album.FolderName(a.Name)), Scanner.PathComparer);
+        if (Directory.Exists(legacyDir))
         {
-            var known = new HashSet<string>(albums.Where(a => a.IsPhysical).Select(a => Album.FolderName(a.Name)), Scanner.PathComparer);
-            foreach (var dir in Directory.EnumerateDirectories(AlbumsDir))
+            foreach (var dir in Directory.EnumerateDirectories(legacyDir))
             {
                 var name = Path.GetFileName(dir);
-                if (known.Contains(name)) continue;
+                if (!known.Add(name)) continue;
                 albums.Add(db.CreateAlbum(name, AlbumKind.Physical));
+                changed = true;
+            }
+        }
+        if (Directory.Exists(Root))
+        {
+            var map = Folders();
+            var withMedia = new HashSet<string>(library.Select(r => LibraryFolders.TopOf(Root, r.Path)).OfType<string>(), Scanner.PathComparer);
+            foreach (var dir in Directory.EnumerateDirectories(Root))
+            {
+                var name = Path.GetFileName(dir);
+                if (map.RoleOf(name) != FolderRole.Album || known.Contains(name) || !withMedia.Contains(name)) continue;
+                if (new DirectoryInfo(dir).Attributes.HasFlag(FileAttributes.Hidden)) continue;
+                known.Add(name);
+                albums.Add(db.CreateAlbum(name, AlbumKind.Physical));
+                changed = true;
+            }
+            var goneDates = db.GetDateFolders().Where(n => !Directory.Exists(Path.Combine(Root, n))).ToList();
+            if (goneDates.Count > 0) db.RemoveDateFolders(goneDates);
+            foreach (var album in albums.Where(a => a.IsPhysical).ToList())
+            {
+                if (Directory.Exists(FolderFor(album)) || library.Any(r => IsInFolder(album, r.Path))) continue;
+                db.DeleteAlbum(album.Id);
+                albums.Remove(album);
                 changed = true;
             }
         }
@@ -310,6 +363,30 @@ public sealed class AlbumService(LibraryDb db, string libraryRoot)
         return changed;
     }
 
+    // ---- folder roles
+
+    /// <summary>
+    /// The user's decision for a top-level folder. Making it a date folder removes its folder album (the files
+    /// stay where they are; Organise re-files any that don't fit the date layout). Making it an album stops
+    /// Organise touching it. Nothing on disk moves here.
+    /// </summary>
+    public void SetRole(string folder, FolderRole role)
+    {
+        var album = db.GetAlbums().FirstOrDefault(a => a.IsPhysical && Scanner.PathComparer.Equals(Album.FolderName(a.Name), folder)
+            && !Directory.Exists(Path.Combine(Root, LibraryFolders.LegacyAlbums, folder)));
+        if (role == FolderRole.Date)
+        {
+            if (album is not null) db.DeleteAlbum(album.Id);
+            db.AddDateFolders([folder]);
+        }
+        else if (role == FolderRole.Album)
+        {
+            db.RemoveDateFolders([folder]);
+            if (album is null) db.CreateAlbum(folder, AlbumKind.Physical);
+        }
+        else throw new ArgumentOutOfRangeException(nameof(role), "A folder can only be made a date folder or an album.");
+    }
+
     // ---- moving
 
     private (int Moved, List<(long, string)> Relocated, List<(string Path, string Message)> Errors) MoveInto(List<MediaRecord> records, string folder)
@@ -321,9 +398,10 @@ public sealed class AlbumService(LibraryDb db, string libraryRoot)
     private (int Moved, List<(long, string)> Relocated, List<(string Path, string Message)> Errors) MoveHome(List<MediaRecord> records)
     {
         var alloc = new DestAllocator();
+        var map = Folders();
         var touched = new HashSet<string>(Scanner.PathComparer);
-        var result = MoveEach(records, r => { touched.Add(Path.GetDirectoryName(r.Path)!); return alloc.Claim(HomeFor(r)); });
-        Organizer.PruneEmptyDirs(AlbumsDir, touched.Where(d => IsUnder(d, AlbumsDir)));
+        var result = MoveEach(records, r => { touched.Add(Path.GetDirectoryName(r.Path)!); return alloc.Claim(map.HomeFor(r.Taken, r.FileName)); });
+        Organizer.PruneEmptyDirs(Root, touched, map.KeepWhenEmpty);
         return result;
     }
 

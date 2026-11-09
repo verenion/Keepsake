@@ -25,6 +25,8 @@ or GPU, and sensitive photos can be locked away in encrypted vaults.
   inside videos, using a CLIP model running locally.
 - **Albums three ways.** Virtual albums are lists, folder albums are real folders on disk, and secure albums are
   encrypted vaults with their own password.
+- **Backups that can't eat themselves.** Copy the library and its database to another drive, on a schedule or on
+  demand. Old versions and deleted files are archived in the backup, never removed.
 - **Clean-up tools.** Find exact and near duplicates, and blurry, dark or blown-out shots, and remove them safely.
 - **Your files stay yours.** Plain folders on disk, nothing proprietary. Stop using Keepsake and your library is
   still a normal folder of photos.
@@ -50,8 +52,11 @@ or GPU, and sensitive photos can be locked away in encrypted vaults.
   - *Present*: an identical file is already there.
   - *Similar*: a re-saved, edited or resized version of a photo you have. Shown side by side so you decide.
   - *Missing*: copied into its dated folder. The source folder is never changed.
-- **Organise…** previews, then moves everything into `YYYY\YYYY_MM\YYYY_MM_DD\<original name>`.
-  - Exact duplicates go to `_Duplicates` and undated files to `_Undated`.
+- **Organise…** previews, then files photos into date folders, `2024\2024_05\2024_05_31\<original name>` by
+  default. Other layouts can be chosen in *Settings › Library folders*, such as `2024\05\31`, `2024-05-31`, or
+  a folder per month or year.
+  - Undated files go to `_Undated`. Duplicates are filed like any other photo; the Duplicates tab finds them.
+  - Folder albums are left alone (see [Library folders](#library-folders)).
   - Every run is logged and can be undone.
 - Capture dates come from, in order: camera EXIF or video metadata, a date and time in the file name, other EXIF
   dates, Google Takeout metadata, then a date-only file name.
@@ -75,10 +80,29 @@ Right-click photos anywhere and choose *Add to album*. Each album has a name, co
 | Type | What it is | A photo can be in |
 |---|---|---|
 | **Virtual** | A list in Keepsake's database. Files don't move. | Any number |
-| **Folder** | A real folder, `_Albums\<name>`. Adding a photo moves its file there; removing it moves it back. | One |
+| **Folder** | A real folder at the top of the library. Adding a photo moves its file there; removing it moves it back. | One |
 | **Secure** | An encrypted vault with its own password. | One |
 
-Folders you create under `_Albums` yourself become albums after a rescan.
+### Library folders
+
+Every top-level folder in the library is one of these:
+
+- **Date folders** are where Organise files photos by date. Keepsake only treats a folder as one if it created it,
+  or you said so.
+- **Folder albums** are every other folder, including ones you make in Explorer or that another app writes to,
+  such as a phone's `Camera Roll`. Each becomes an album after a rescan once it has a photo in it. Organise
+  never moves anything out of them unless you switch on *Organise this folder* in that album's settings.
+- **Keepsake's own folders** start with `_`. Folders starting with `$` or `.` belong to sync tools and are left
+  alone.
+
+Keepsake never decides from a name alone. A folder it didn't create but that's named like a date, such as
+`2012`, `2012-05-31` or `2012_05`, waits for you. A *some folders look like dates* button appears, and you choose
+*Date folder* or *Folder album* for each one. The review shows which date layout the folder's files already
+follow, and suggests that layout if it differs from the setting. Until you decide, Organise and Import leave such
+folders alone. *Settings › Library folders › Review folders…* lets you change any folder later. Changing a
+folder's role, or the date layout, never moves anything by itself: the next Organise does the re-filing.
+
+Albums made by older versions in `_Albums\<name>` keep working where they are.
 
 ### Secure vaults
 
@@ -107,6 +131,23 @@ The encryption is described under [Vault format](#vault-format).
   Each group keeps its best copy and ticks the rest for removal. A RAW file is always kept over its JPEG twin.
 - **Quality** measures brightness, contrast and sharpness once, then a strictness slider surfaces black,
   blown-out, flat and blurry photos, worst first, with the reason under each.
+
+### Backup
+
+Pick a backup folder in *Settings › Backup*, ideally on another drive, and choose when to back up: only when you
+click *Back up now*, each time Keepsake opens, once a day or once a week. Backups run while Keepsake is open.
+
+- The backup has the same folders as the library, so it's an ordinary folder of photos you can browse or
+  restore by copying back.
+- Only new and changed files are copied, so after the first run a backup takes seconds to minutes.
+- Nothing in the backup is deleted or overwritten. When a file changes, or is moved or deleted in the library,
+  the old backup copy moves to `_Archive\<date and time>\`. Delete old archive folders yourself when you need
+  the space.
+- Vaults are copied as they are, still encrypted. Their passwords are needed to open them from the backup too.
+- `_Keepsake\library.sqlite` is a copy of Keepsake's database (albums, AI index, tags and settings). To restore
+  it, copy it to `%LOCALAPPDATA%\PhotoLibrary\` while Keepsake is closed.
+- If a library folder can't be read, or the library is missing or empty, nothing is archived that run, so an
+  unplugged drive never looks like deleted photos.
 
 ### Formats
 
@@ -165,8 +206,8 @@ What Keepsake keeps, all on your machine:
 - `%LOCALAPPDATA%\PhotoLibrary\library.sqlite` holds the index of your library, AI vectors and tags, albums and
   settings. Deleted entries are overwritten, not just unlinked.
 - `%LOCALAPPDATA%\PhotoLibrary\thumbs\` holds the thumbnail cache. Vault photos are never cached.
-- Inside your library: `_Albums` (folder albums), `_Vault` (encrypted vaults), `_Duplicates`, `_Undated` and
-  `_Logs`.
+- Inside your library: your date folders and folder albums, plus `_Vault` (encrypted vaults),
+  `_Undated` and `_Logs`.
 
 ## Download
 

@@ -133,7 +133,7 @@ public sealed class Importer(LibraryDb db)
     }
 
     /// <summary>Copies the Missing items plus any Similar items marked Selected. Returns the number imported.</summary>
-    public async Task<int> ImportAsync(CheckReport report, IProgress<ScanProgress>? progress, CancellationToken ct)
+    public async Task<int> ImportAsync(CheckReport report, Layout.FolderMap map, IProgress<ScanProgress>? progress, CancellationToken ct)
     {
         var root = report.LibraryRoot;
         var toImport = report.Items.Where(i => i.Status == MatchStatus.Missing || (i.Status == MatchStatus.Similar && i.Selected)).ToList();
@@ -155,8 +155,9 @@ public sealed class Importer(LibraryDb db)
                 log.Add((r.Path, "skipped-duplicate", null, item.How));
                 continue;
             }
-            var dest = r.Taken is { } t
-                ? alloc.Claim(Path.Combine(root, DateRules.DatedFolder(t), r.FileName))
+            // A date whose folder is an album (or awaiting a decision) is imported like an undated file.
+            var dest = r.Taken is { } t && map.DatedPath(t, r.FileName) is { } dated
+                ? alloc.Claim(dated)
                 : alloc.Claim(Path.Combine(root, LibraryFolders.Undated, Path.GetFileName(report.Folder), Path.GetRelativePath(report.Folder, r.Path)));
             try
             {

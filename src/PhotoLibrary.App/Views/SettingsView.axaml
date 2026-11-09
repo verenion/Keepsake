@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:PhotoLibrary.App.ViewModels"
              xmlns:clip="using:PhotoLibrary.AI.Clip"
+             xmlns:layout="using:PhotoLibrary.Core.Layout"
              x:Class="PhotoLibrary.App.Views.SettingsView"
              x:DataType="vm:SettingsViewModel">
 
@@ -32,6 +33,27 @@
                     </DockPanel>
                     <TextBlock Classes="hint" Text="{Binding HiddenText}" Margin="0,8,0,0" />
                     <Button Content="Restore removed items" Command="{Binding RestoreHiddenCommand}" HorizontalAlignment="Left" />
+                </StackPanel>
+            </Border>
+
+            <!-- Library folders -->
+            <Border Classes="card">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="h" Text="Library folders" />
+                    <TextBlock Classes="hint" Text="Organise files photos into date folders. Every other top-level folder in the library is a folder album and is left alone, unless you switch on “Organise this folder” in its album settings. Folders named like dates that Keepsake didn't create are never assumed to be either: you choose." />
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Left" Text="Date folder layout" Width="160" VerticalAlignment="Center" />
+                        <ComboBox ItemsSource="{Binding DateLayouts}" SelectedItem="{Binding DateLayout, Mode=TwoWay}" HorizontalAlignment="Stretch">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="layout:DateLayout">
+                                    <TextBlock Text="{Binding Label}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </DockPanel>
+                    <TextBlock Classes="hint" Text="Changing the layout doesn't move anything straight away: the next Organise re-files photos in date folders into the new layout. Folder albums are never touched." />
+                    <Button Content="Review folders…" Click="ReviewFoldersClick" HorizontalAlignment="Left"
+                            ToolTip.Tip="See every top-level folder and change whether it's a date folder or an album." />
                 </StackPanel>
             </Border>
 
@@ -96,6 +118,38 @@
                     </DockPanel>
                     <TextBlock Classes="hint" Text="{Binding ThumbHint}" />
                     <Button Content="Apply and rebuild thumbnails" Command="{Binding ApplyThumbnailSettingsCommand}" HorizontalAlignment="Left" />
+                </StackPanel>
+            </Border>
+
+            <!-- Backup -->
+            <Border Classes="card" DataContext="{Binding Backup}">
+                <StackPanel Spacing="8" x:DataType="vm:BackupViewModel">
+                    <TextBlock Classes="h" Text="Backup" />
+                    <TextBlock Classes="hint" Text="Copies the library, including vaults (still encrypted), and Keepsake's database into another folder, ideally on another drive. Only new and changed files are copied. Nothing in the backup is ever deleted: older versions and files you remove from the library move to its _Archive folder. Backups run while Keepsake is open." />
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" Margin="8,0,0,0">
+                            <Button Content="Choose…" Click="ChooseBackupFolderClick" IsEnabled="{Binding !IsRunning}" />
+                            <Button Content="Turn off" Command="{Binding ClearFolderCommand}" IsVisible="{Binding HasFolder}" IsEnabled="{Binding !IsRunning}" />
+                        </StackPanel>
+                        <TextBox Text="{Binding Folder, Mode=OneWay}" IsReadOnly="True" Watermark="No backup folder chosen" />
+                    </DockPanel>
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Left" Text="Back up" Width="160" VerticalAlignment="Center" />
+                        <ComboBox ItemsSource="{Binding ScheduleOptions}" SelectedItem="{Binding Schedule, Mode=TwoWay}" MinWidth="260">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:BackupViewModel+ScheduleOption">
+                                    <TextBlock Text="{Binding Label}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </DockPanel>
+                    <TextBlock Classes="hint" Text="{Binding LastBackupText}" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Classes="accent" Content="Back up now" Command="{Binding BackUpNowCommand}" IsEnabled="{Binding CanRun}" />
+                        <Button Content="Cancel" Click="CancelBackupClick" IsVisible="{Binding IsRunning}" />
+                    </StackPanel>
+                    <ProgressBar Minimum="0" Maximum="100" Value="{Binding Progress}" Height="4" IsVisible="{Binding IsRunning}" />
+                    <TextBlock Classes="hint" Text="{Binding ProgressText}" IsVisible="{Binding ProgressText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                 </StackPanel>
             </Border>
 

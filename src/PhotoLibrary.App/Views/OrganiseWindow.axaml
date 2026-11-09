@@ -8,7 +8,7 @@
     <DockPanel Margin="12">
         <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,8">
             <TextBlock TextWrapping="Wrap" Opacity="0.8"
-                       Text="Moves every photo and video in the library into YYYY\YYYY_MM\YYYY_MM_DD folders by capture date. Files keep their names. Exact duplicates go to _Duplicates, undated files to _Undated, and each run can be undone from the list at the bottom." />
+                       Text="Moves photos and videos into date folders by capture date (the layout is set in Settings › Library folders). Files keep their names. Undated files go to _Undated, folder albums are left alone, and each run can be undone from the list at the bottom. Duplicates are filed like anything else: find and remove them on the Duplicates tab." />
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <Button Content="Preview" Command="{Binding PreviewCommand}" IsEnabled="{Binding !IsBusy}" />
                 <CheckBox Content="Use file modified time for files with no capture date" IsChecked="{Binding UseModifiedTime}" IsEnabled="{Binding !IsBusy}" />

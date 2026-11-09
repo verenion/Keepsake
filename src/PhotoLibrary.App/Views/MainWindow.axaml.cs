@@ -16,13 +16,17 @@ public partial class MainWindow : Window
             {
                 vm.Confirm = (title, message, confirmText) => ConfirmWindow.ShowAsync(this, title, message, confirmText);
                 vm.PromptPassword = (title, message, validate) => PasswordWindow.ShowAsync(this, title, message, validate);
-                Closing += (_, _) => vm.Vaults.LockAll();
+                Closing += (_, _) => { vm.Vaults.LockAll(); vm.Backup.Cancel(); };
                 // A new tree selection replaces the groups: start the grid from the top each time.
                 vm.Groups.CollectionChanged += (_, e) =>
                 {
                     if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset) GridScroll.ScrollToHome();
                 };
-                await vm.InitializeAsync();
+                var init = vm.InitializeAsync();
+                vm.Backup.Start();
+                await init;
+                // Folders named like dates that Keepsake didn't make: ask once per session rather than guess.
+                if (vm.HasUndecidedFolders) await FolderReviewWindow.ShowAsync(this, vm, onlyUndecided: true);
             }
         };
     }
@@ -47,8 +51,22 @@ public partial class MainWindow : Window
         return picked.Count > 0 ? picked[0].TryGetLocalPath() : null;
     }
 
+    /// <summary>Import and Organise file photos by date, so undecided folders have to be settled first.</summary>
+    private async Task<bool> FoldersDecidedAsync()
+    {
+        if (!Vm.HasUndecidedFolders) return true;
+        await FolderReviewWindow.ShowAsync(this, Vm, onlyUndecided: true);
+        if (!Vm.HasUndecidedFolders) return true;
+        Vm.StatusText = "Choose whether the folders named like dates are date folders or albums first.";
+        return false;
+    }
+
+    private async void ReviewFoldersClick(object? sender, RoutedEventArgs e) =>
+        await FolderReviewWindow.ShowAsync(this, Vm, onlyUndecided: true);
+
     private async void ImportClick(object? sender, RoutedEventArgs e)
     {
+        if (!await FoldersDecidedAsync()) return;
         var vm = new ImportViewModel(Vm.State, Vm);
         var win = new ImportWindow { DataContext = vm };
         await win.ShowDialog(this);
@@ -56,6 +74,7 @@ public partial class MainWindow : Window
 
     private async void OrganiseClick(object? sender, RoutedEventArgs e)
     {
+        if (!await FoldersDecidedAsync()) return;
         var vm = new OrganiseViewModel(Vm.State, Vm);
         vm.LoadPreviousRuns();
         var win = new OrganiseWindow { DataContext = vm };

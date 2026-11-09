@@ -37,6 +37,18 @@
                             <Button Content="Tick all but best" Command="{Binding MarkAllButBestCommand}" FontSize="12" />
                             <Button Content="Clear ticks" Command="{Binding ClearMarksCommand}" FontSize="12" />
                         </StackPanel>
+                        <StackPanel Spacing="6" Margin="0,6,0,0" IsVisible="{Binding HasFolderChoices}">
+                            <TextBlock Text="Keep the copies in a folder" FontWeight="SemiBold" />
+                            <ComboBox ItemsSource="{Binding FolderChoices}" SelectedItem="{Binding KeepFolder, Mode=TwoWay}" HorizontalAlignment="Stretch">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:DuplicatesViewModel+FolderChoice">
+                                        <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <Button Content="Keep these, tick the other copies" Command="{Binding KeepFromFolderCommand}" HorizontalAlignment="Stretch" />
+                            <TextBlock Text="For every group with a copy in that folder, the copy there is kept and the others are ticked. Groups with no copy there are left as they are." TextWrapping="Wrap" FontSize="11" Opacity="0.7" />
+                        </StackPanel>
                         <Button Content="Remove ticked from library" Command="{Binding RemoveMarkedCommand}" HorizontalAlignment="Stretch" />
                         <TextBlock Text="Hidden from the library and never re-imported; the files stay on disk. Undo from Settings." TextWrapping="Wrap" FontSize="11" Opacity="0.7" />
                         <Button Content="Delete ticked from disk…" Command="{Binding DeleteMarkedCommand}" HorizontalAlignment="Stretch" />

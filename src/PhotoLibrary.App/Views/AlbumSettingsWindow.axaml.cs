@@ -39,6 +39,7 @@ public partial class AlbumSettingsWindow : Window
             _colour = existing.Album.Colour;
             _coverId = existing.Album.CoverFileId;
             (existing.IsSecure ? SecureRadio : existing.IsPhysical ? PhysicalRadio : VirtualRadio).IsChecked = true;
+            OrganiseBox.IsChecked = existing.Album.Organise;
             if (existing.IsSecure)
             {
                 // A vault is left by deleting it (which restores its photos), not by switching type.
@@ -84,10 +85,13 @@ public partial class AlbumSettingsWindow : Window
     private void UpdateHints()
     {
         var name = (NameBox.Text ?? "").Trim();
-        var folder = Path.Combine(LibraryFolders.Albums, Album.FolderName(name.Length == 0 ? "Name" : name));
-        PhysicalHint.Text = $"A real folder in the library: {folder}\\. Adding a photo moves its file there (and out of any other folder album), " +
-                            "removing it moves the file back into its dated folder. A photo can be in only one folder album.";
+        var folder = _existing is { IsPhysical: true } ex && name == ex.Album.Name
+            ? Path.GetRelativePath(State.LibraryRoot, State.Albums.FolderFor(ex.Album))
+            : Album.FolderName(name.Length == 0 ? "Name" : name);
+        PhysicalHint.Text = $"A real folder at the top of the library: {folder}\\. Adding a photo moves its file there (and out of any other folder album), " +
+                            "removing it moves the file back into its date folder. A photo can be in only one folder album. Folders you make yourself in the library become folder albums automatically.";
         var physical = PhysicalRadio.IsChecked == true;
+        OrganiseBox.IsVisible = physical;
         var secure = SecureRadio.IsChecked == true;
         var n = _existing?.Count ?? 0;
         PasswordPanel.IsVisible = secure;
@@ -163,6 +167,11 @@ public partial class AlbumSettingsWindow : Window
             return;
         }
         var kind = SecureRadio.IsChecked == true ? AlbumKind.Secure : PhysicalRadio.IsChecked == true ? AlbumKind.Physical : AlbumKind.Virtual;
+        if (kind == AlbumKind.Physical && State.Albums.FolderProblem(name, _existing?.Album is { IsPhysical: true } a ? a : null) is { } problem)
+        {
+            ShowError(problem);
+            return;
+        }
         string? password = null, current = null;
         if (kind == AlbumKind.Secure)
         {
@@ -179,7 +188,8 @@ public partial class AlbumSettingsWindow : Window
             }
         }
         NewPasswordBox.Text = ConfirmPasswordBox.Text = CurrentPasswordBox.Text = "";
-        Close(new Outcome(new AlbumSettingsResult(name, _colour, kind, kind == AlbumKind.Secure ? null : _coverId, password, current), false));
+        Close(new Outcome(new AlbumSettingsResult(name, _colour, kind, kind == AlbumKind.Secure ? null : _coverId, password, current,
+            Organise: kind == AlbumKind.Physical && OrganiseBox.IsChecked == true), false));
     }
 
     private async void DeleteClick(object? sender, RoutedEventArgs e)
@@ -190,7 +200,7 @@ public partial class AlbumSettingsWindow : Window
         var message = _existing.IsSecure
             ? $"{(n == 1 ? "Its one item is" : $"Its {n:N0} items are")} decrypted back into the library's dated folders, unencrypted, and then the vault is deleted. You will be asked for the password if the album is locked."
             : _existing.IsPhysical
-            ? $"The album is removed and {photos} are moved back into their dated folders. No photos are deleted."
+            ? $"The album is removed and {photos} are moved out of its folder into their date folders. No photos are deleted. If another app (such as a phone sync) writes to this folder, it will probably put the files back, so consider keeping the album instead."
             : $"The album list is removed. The photos stay in the library untouched.";
         var ok = await ConfirmWindow.ShowAsync(this, $"Delete “{_existing.Name}”?", message, "Delete album");
         if (ok) Close(new Outcome(null, true));

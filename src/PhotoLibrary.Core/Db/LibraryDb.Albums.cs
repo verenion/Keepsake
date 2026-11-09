@@ -13,11 +13,45 @@ public sealed partial class LibraryDb
         CREATE TABLE IF NOT EXISTS album_items(album_id INTEGER NOT NULL, file_id INTEGER NOT NULL, added TEXT NOT NULL,
             PRIMARY KEY(album_id, file_id));
         CREATE INDEX IF NOT EXISTS ix_album_items_file ON album_items(file_id);
+        CREATE TABLE IF NOT EXISTS date_folders(name TEXT PRIMARY KEY COLLATE NOCASE);
         """);
+
+    /// <summary>Top-level folders that hold dated folders: ones Keepsake created, or the user confirmed.</summary>
+    public List<string> GetDateFolders()
+    {
+        lock (_gate)
+        {
+            using var cmd = _conn.CreateCommand();
+            cmd.CommandText = "SELECT name FROM date_folders";
+            using var r = cmd.ExecuteReader();
+            var list = new List<string>();
+            while (r.Read()) list.Add(r.GetString(0));
+            return list;
+        }
+    }
+
+    public void AddDateFolders(IEnumerable<string> names) => EachName("INSERT OR IGNORE INTO date_folders(name) VALUES(@n)", names);
+
+    public void RemoveDateFolders(IEnumerable<string> names) => EachName("DELETE FROM date_folders WHERE name=@n", names);
+
+    private void EachName(string sql, IEnumerable<string> names)
+    {
+        lock (_gate)
+        {
+            using var tx = _conn.BeginTransaction();
+            using var cmd = _conn.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = sql;
+            var p = cmd.Parameters.Add("@n", SqliteType.Text);
+            foreach (var n in names) { p.Value = n; cmd.ExecuteNonQuery(); }
+            tx.Commit();
+        }
+    }
 
     private void EnsureAlbumColumns()
     {
         if (!ColumnExists("albums", "vault_id")) Exec("ALTER TABLE albums ADD COLUMN vault_id TEXT");
+        if (!ColumnExists("albums", "organise")) Exec("ALTER TABLE albums ADD COLUMN organise INTEGER NOT NULL DEFAULT 0");
     }
 
     private static Album MapAlbum(SqliteDataReader r) => new()
@@ -30,12 +64,13 @@ public sealed partial class LibraryDb
         Created = DateTime.ParseExact(r.GetString(5), "O", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
         Count = r.GetInt32(6),
         VaultId = r.IsDBNull(7) ? null : r.GetString(7),
+        Organise = r.GetInt64(8) != 0,
     };
 
     private const string AlbumSelect = """
         SELECT a.id, a.name, a.colour, a.kind, a.cover_file_id, a.created,
                (SELECT count(*) FROM album_items i JOIN files f ON f.id=i.file_id WHERE i.album_id=a.id AND f.in_library=1),
-               a.vault_id
+               a.vault_id, a.organise
         FROM albums a
         """;
 
@@ -92,7 +127,8 @@ public sealed partial class LibraryDb
         lock (_gate)
         {
             using var cmd = _conn.CreateCommand();
-            cmd.CommandText = "UPDATE albums SET name=@n, colour=@c, kind=@k, cover_file_id=@cov, vault_id=@v WHERE id=@id";
+            cmd.CommandText = "UPDATE albums SET name=@n, colour=@c, kind=@k, cover_file_id=@cov, vault_id=@v, organise=@o WHERE id=@id";
+            cmd.Parameters.AddWithValue("@o", album.Organise ? 1 : 0);
             cmd.Parameters.AddWithValue("@v", (object?)album.VaultId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@n", album.Name.Trim());
             cmd.Parameters.AddWithValue("@c", album.Colour);

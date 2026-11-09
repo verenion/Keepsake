@@ -38,6 +38,9 @@
                             ToolTip.Tip="Video thumbnails and previews are made with ffmpeg. Settings has a one-click download.">
                         <TextBlock Text="Videos have no previews: set up ffmpeg…" FontSize="12" />
                     </Button>
+                    <Button Background="{DynamicResource KsWarnBrush}" Padding="9,3" IsVisible="{Binding HasUndecidedFolders}" Click="ReviewFoldersClick">
+                        <TextBlock Text="{Binding UndecidedFoldersText}" FontSize="12" />
+                    </Button>
                     <Border Classes="warn" IsVisible="{Binding NeedsOrganise}" VerticalAlignment="Center">
                         <TextBlock Text="Some files aren't in dated folders yet: see Organise" FontSize="12" />
                     </Border>
