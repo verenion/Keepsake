@@ -22,6 +22,9 @@ public sealed class AlbumService(LibraryDb db, string libraryRoot)
 {
     public string Root { get; } = Path.GetFullPath(libraryRoot);
 
+    /// <summary>Argon2id strength for new vaults (from Settings).</summary>
+    public KdfParams Kdf { get; set; } = KdfParams.Default;
+
     /// <summary>A fresh snapshot of which top-level folders are dates and which are albums.</summary>
     public FolderMap Folders() => new(db, Root);
 
@@ -64,7 +67,7 @@ public sealed class AlbumService(LibraryDb db, string libraryRoot)
         if (kind == AlbumKind.Secure)
         {
             if (string.IsNullOrEmpty(password)) throw new ArgumentException("A secure album needs a password.", nameof(password));
-            return db.CreateAlbum(name, kind, colour, VaultStore.Create(Root, password));
+            return db.CreateAlbum(name, kind, colour, VaultStore.Create(Root, password, Kdf));
         }
         if (kind == AlbumKind.Physical && FolderProblem(name) is { } problem) throw new InvalidOperationException(problem);
         var album = db.CreateAlbum(name, kind, colour);
@@ -222,7 +225,7 @@ public sealed class AlbumService(LibraryDb db, string libraryRoot)
         if (album.IsSecure) return new VaultChange([], []);
         var members = db.GetAlbumItems(album.Id);
         var oldFolder = album.IsPhysical ? FolderFor(album) : null;
-        album.VaultId = VaultStore.Create(Root, password);
+        album.VaultId = VaultStore.Create(Root, password, Kdf);
         album.Kind = AlbumKind.Secure;
         album.CoverFileId = null;
         db.UpdateAlbum(album);

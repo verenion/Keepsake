@@ -45,7 +45,7 @@ public partial class VaultViewModel : ViewModelBase, IDisposable
 
     public bool HasSelection => Selected is not null;
     public int TileSize => _main.State.Settings.TileSize;
-    public string LockedHint => $"This album is encrypted. Enter its password to see its {Album.Count:N0} items. It locks again after {VaultSession.IdleTimeout.TotalMinutes:0} minutes without use.";
+    public string LockedHint => $"This album is encrypted. Enter its password to see its {Album.Count:N0} items. {(_main.Vaults.IdleTimeout is { } t ? $"It locks again after {t.TotalMinutes:0} minute{(t.TotalMinutes == 1 ? "" : "s")} without use." : "It stays unlocked until you lock it or close Keepsake.")}";
 
     private void RefreshState()
     {

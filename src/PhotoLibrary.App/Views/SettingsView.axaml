@@ -3,6 +3,7 @@
              xmlns:vm="using:PhotoLibrary.App.ViewModels"
              xmlns:clip="using:PhotoLibrary.AI.Clip"
              xmlns:layout="using:PhotoLibrary.Core.Layout"
+             xmlns:vault="using:PhotoLibrary.Core.Vault"
              x:Class="PhotoLibrary.App.Views.SettingsView"
              x:DataType="vm:SettingsViewModel">
 
@@ -118,6 +119,51 @@
                     </DockPanel>
                     <TextBlock Classes="hint" Text="{Binding ThumbHint}" />
                     <Button Content="Apply and rebuild thumbnails" Command="{Binding ApplyThumbnailSettingsCommand}" HorizontalAlignment="Left" />
+                </StackPanel>
+            </Border>
+
+            <!-- Vault security -->
+            <Border Classes="card">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="h" Text="Vault security" />
+                    <TextBlock Classes="hint" Text="Photos in a secure album are encrypted with AES-256-GCM, each file under its own key (HKDF-SHA256), so any change or damage to a file is detected. The album's password is turned into the key that unlocks the vault with Argon2id, which is deliberately slow and memory-hungry so that guessing passwords is expensive." />
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Left" Text="Password protection" Width="160" VerticalAlignment="Center" />
+                        <Button DockPanel.Dock="Right" Content="Test on this PC" Command="{Binding TestKdfCommand}" IsEnabled="{Binding !KdfTesting}" Margin="8,0,0,0" />
+                        <ComboBox ItemsSource="{Binding KdfPresets}" SelectedItem="{Binding VaultKdf, Mode=TwoWay}" HorizontalAlignment="Stretch">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="vault:KdfPreset">
+                                    <TextBlock Text="{Binding Name}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </DockPanel>
+                    <TextBlock Classes="hint" Text="{Binding VaultKdfHint}" />
+                    <TextBlock Classes="hint" Text="{Binding KdfTestResult}" IsVisible="{Binding KdfTestResult, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                    <TextBlock Classes="hint" Text="Used for new secure albums and whenever a vault's password is changed. A stronger setting makes every unlock slower but every password guess costlier too; a long passphrase matters more than either." />
+                    <StackPanel Spacing="2" IsVisible="{Binding HasVaults}">
+                        <TextBlock Text="Your vaults" FontWeight="SemiBold" Margin="0,4,0,0" />
+                        <ItemsControl ItemsSource="{Binding VaultStrengths}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <TextBlock Text="{Binding}" FontSize="12" TextWrapping="Wrap" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Classes="hint" IsVisible="{Binding VaultsBehind}" Margin="0,4,0,0"
+                                   Text="To move a vault to the setting above, open its album settings and change its password. You can enter the same password again. Only the small key file is rewritten; the photos aren't re-encrypted." />
+                    </StackPanel>
+                    <DockPanel Margin="0,6,0,0">
+                        <TextBlock DockPanel.Dock="Left" Text="Lock unlocked vaults" Width="160" VerticalAlignment="Center" />
+                        <ComboBox ItemsSource="{Binding AutoLockOptions}" SelectedItem="{Binding AutoLock, Mode=TwoWay}" HorizontalAlignment="Stretch">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:SettingsViewModel+AutoLockOption">
+                                    <TextBlock Text="{Binding Label}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </DockPanel>
+                    <TextBlock Classes="hint" Text="Every vault always locks when Keepsake closes, and keys are only ever held in memory." />
                 </StackPanel>
             </Border>
 

@@ -30,6 +30,7 @@ public partial class MainViewModel : ViewModelBase
         Albums = new AlbumsViewModel(this);
         Duplicates = new DuplicatesViewModel(this);
         Quality = new QualityViewModel(this);
+        Vaults.IdleTimeout = state.Settings.VaultAutoLockMinutes is > 0 and var m ? TimeSpan.FromMinutes(m) : null;
         Backup = new BackupViewModel(this);
         Settings = new SettingsViewModel(this);
         OnAlbumsChanged();

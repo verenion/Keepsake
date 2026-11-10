@@ -73,7 +73,7 @@ public sealed class AppState : IDisposable
             Db.SetSetting("thumbs_v2", "1");
         }
         LibraryRoot = Db.GetSetting("library_root") ?? AppPaths.DefaultLibraryRoot();
-        Albums = new AlbumService(Db, LibraryRoot);
+        Albums = new AlbumService(Db, LibraryRoot) { Kdf = Settings.VaultKdf.Params };
     }
 
     public void SetLibraryRoot(string root)
@@ -81,7 +81,7 @@ public sealed class AppState : IDisposable
         root = Path.GetFullPath(root);
         if (!Scanner.PathComparer.Equals(root, LibraryRoot)) Db.SetInLibraryUnder(LibraryRoot, false);
         LibraryRoot = root;
-        Albums = new AlbumService(Db, root);
+        Albums = new AlbumService(Db, root) { Kdf = Settings.VaultKdf.Params };
         Db.SetSetting("library_root", root);
     }
 

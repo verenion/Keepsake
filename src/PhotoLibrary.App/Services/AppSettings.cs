@@ -139,6 +139,22 @@ public sealed class AppSettings
         set { _tileSize = value; Set("tile_size", value); }
     }
 
+    // ---- vault security
+
+    /// <summary>Argon2id strength used for new vaults and password changes.</summary>
+    public PhotoLibrary.Core.Vault.KdfPreset VaultKdf
+    {
+        get => PhotoLibrary.Core.Vault.KdfPreset.Find(_db.GetSetting("vault_kdf"));
+        set => _db.SetSetting("vault_kdf", value.Id);
+    }
+
+    /// <summary>Minutes an unlocked vault stays open without use; 0 means until Keepsake closes.</summary>
+    public int VaultAutoLockMinutes
+    {
+        get => Math.Max(0, GetInt("vault_autolock_min", 10));
+        set => Set("vault_autolock_min", Math.Max(0, value));
+    }
+
     // ---- library folders
 
     /// <summary>How dated folders are laid out. Changing it re-files date folders on the next Organise.</summary>

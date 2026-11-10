@@ -114,7 +114,11 @@ For scanned documents, IDs and anything else you want kept private.
   memberships, cached thumbnail and log entries.
 - A locked vault shows only grey lock tiles. Once unlocked, thumbnails and previews are decrypted into memory
   only, never to disk.
-- Vaults lock by hand, after 10 idle minutes, and when Keepsake closes. The key is wiped from memory.
+- Vaults lock by hand, after a period without use (10 minutes by default; 1 minute to 1 hour, or never, in
+  *Settings › Vault security*), and always when Keepsake closes. The key is wiped from memory.
+- *Settings › Vault security* also sets how hard the password is to guess: Standard, Strong or Maximum Argon2id,
+  with a button to time an unlock on your PC. It applies to new vaults and to password changes; re-entering the
+  same password moves an existing vault to the new setting without re-encrypting any photos.
 - From an unlocked vault you can export a decrypted copy, move a photo back into the library, or delete it.
 - Each vault has its own password. **There is no recovery key: a forgotten password means those photos are gone.**
 
@@ -270,8 +274,8 @@ The code and data folders still use the working name `PhotoLibrary`.
 
 Each vault is a folder `_Vault\<random id>` holding `vault.json` and one `<random>.plv` file per photo.
 
-- **Password:** it goes through Argon2id (64 MiB, 3 passes, 4 lanes, recorded in `vault.json` so they can be
-  raised later). The result unwraps a random 256-bit vault key with AES-256-GCM. Changing the password re-wraps
+- **Password:** it goes through Argon2id (64 MiB and 3 passes by default, up to 1 GiB and 4 passes, always 4
+  lanes; recorded in `vault.json` so each vault can be raised later). The result unwraps a random 256-bit vault key with AES-256-GCM. Changing the password re-wraps
   that key; no photo is re-encrypted.
 - **Files:** each `.plv` has a random salt. HKDF-SHA256 derives a per-file key from it and the vault key. The
   photo's details (original name, dates, camera, GPS) and its contents are sealed with AES-256-GCM in 1 MiB

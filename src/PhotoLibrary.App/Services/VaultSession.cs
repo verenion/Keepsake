@@ -14,7 +14,8 @@ public sealed class VaultSession : IDisposable
     private readonly Dictionary<long, (byte[] Key, DateTime LastUsed)> _keys = [];
     private readonly DispatcherTimer _timer;
 
-    public static readonly TimeSpan IdleTimeout = TimeSpan.FromMinutes(10);
+    /// <summary>How long an unlocked vault stays open without use; null keeps it open until Keepsake closes.</summary>
+    public TimeSpan? IdleTimeout { get; set; } = TimeSpan.FromMinutes(10);
 
     /// <summary>Raised on the UI thread with the album id after a vault locks (by hand or after idling).</summary>
     public event Action<long>? Locked;
@@ -62,7 +63,7 @@ public sealed class VaultSession : IDisposable
     {
         var now = DateTime.UtcNow;
         foreach (var (id, entry) in _keys.ToList())
-            if (now - entry.LastUsed > IdleTimeout) Lock(id);
+            if (IdleTimeout is { } limit && now - entry.LastUsed > limit) Lock(id);
     }
 
     public void Dispose()

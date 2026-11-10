@@ -224,4 +224,28 @@ public class VaultTests : IDisposable
         Assert.Equal(id, adopted.VaultId);
         Assert.False(albums.SyncFolders([]));
     }
+
+    [Fact]
+    public void ChangingThePasswordAppliesNewStrengthWithoutTouchingFiles()
+    {
+        var lib = Path.Combine(_root, "Library3");
+        Directory.CreateDirectory(lib);
+        var id = VaultStore.Create(lib, "first-pass-1", Fast);
+        var dir = VaultStore.FolderFor(lib, id);
+        var src = Path.Combine(_root, "doc.jpg");
+        File.WriteAllBytes(src, [1, 2, 3, 4]);
+        var key = VaultStore.Unlock(dir, "first-pass-1");
+        var item = VaultStore.Add(dir, key, src, new VaultItemInfo { OriginalName = "doc.jpg", Size = 4, Sha256 = Sha([1, 2, 3, 4]) });
+        var before = File.ReadAllBytes(item.FilePath);
+
+        var stronger = Fast with { Iterations = Fast.Iterations + 1 };
+        VaultStore.ChangePassword(dir, "first-pass-1", "first-pass-1", stronger);   // same password, new strength
+
+        var kf = VaultStore.ReadKeyFile(dir);
+        Assert.Equal(stronger, new KdfParams(kf.MemoryKiB, kf.Iterations, kf.Parallelism));
+        Assert.Equal(before, File.ReadAllBytes(item.FilePath));                    // photos not re-encrypted
+        Assert.Equal(key, VaultStore.Unlock(dir, "first-pass-1"));                // same vault key underneath
+        Assert.Contains(KdfPreset.All, p => p.Params == KdfParams.Default);
+        Assert.Equal("standard", KdfPreset.Find("nonsense").Id);
+    }
 }

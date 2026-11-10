@@ -88,7 +88,7 @@ public partial class AlbumsViewModel
             var members = State.Db.GetAlbumItems(album.Id);
             State.Albums.Rename(album, settings.Name);
             album.Colour = settings.Colour;
-            album.VaultId = await Task.Run(() => VaultStore.Create(State.LibraryRoot, pw)); // Argon2id: keep it off the UI thread
+            album.VaultId = await Task.Run(() => VaultStore.Create(State.LibraryRoot, pw, State.Albums.Kdf)); // Argon2id: keep it off the UI thread
             album.Kind = AlbumKind.Secure;
             album.CoverFileId = null;
             State.Db.UpdateAlbum(album);
@@ -107,7 +107,7 @@ public partial class AlbumsViewModel
         {
             try
             {
-                await Task.Run(() => VaultStore.ChangePassword(State.Albums.FolderFor(album), current, newPw));
+                await Task.Run(() => VaultStore.ChangePassword(State.Albums.FolderFor(album), current, newPw, State.Albums.Kdf));
                 _main.StatusText = $"Changed the password of “{album.Name}”.";
             }
             catch (VaultAuthenticationException) { _main.StatusText = "The current password was wrong; the password was not changed."; }

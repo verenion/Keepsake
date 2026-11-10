@@ -10,6 +10,24 @@ public sealed record KdfParams(int MemoryKiB, int Iterations, int Parallelism)
 {
     /// <summary>64 MiB, 3 passes, 4 lanes: about half a second per unlock, well above OWASP's minimum.</summary>
     public static readonly KdfParams Default = new(64 * 1024, 3, 4);
+
+    public string Describe() => $"Argon2id, {MemoryKiB / 1024:N0} MiB, {Iterations} passes, {Parallelism} lanes";
+}
+
+/// <summary>A named Argon2id strength offered in Settings.</summary>
+public sealed record KdfPreset(string Id, string Name, string Hint, KdfParams Params)
+{
+    public static readonly KdfPreset[] All =
+    [
+        new("standard", "Standard", "64 MiB, 3 passes. About half a second to unlock on a typical PC.", KdfParams.Default),
+        new("strong", "Strong", "256 MiB, 3 passes. Around 2 seconds to unlock; four times the work for anyone guessing passwords.", new KdfParams(256 * 1024, 3, 4)),
+        new("maximum", "Maximum", "1 GiB, 4 passes. Several seconds to unlock and needs 1 GiB of free memory while it does.", new KdfParams(1024 * 1024, 4, 4)),
+    ];
+
+    public static KdfPreset Find(string? id) => All.FirstOrDefault(p => p.Id == id) ?? All[0];
+
+    /// <summary>The preset with exactly these settings, if any.</summary>
+    public static KdfPreset? Matching(KdfParams p) => All.FirstOrDefault(x => x.Params == p);
 }
 
 /// <summary>Thrown when a password is wrong or a vault file has been altered or truncated.</summary>

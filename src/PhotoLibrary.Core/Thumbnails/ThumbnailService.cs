@@ -89,15 +89,25 @@ public sealed class ThumbnailService(string cacheDir)
         using var bmp = ImageDecoder.Decode(r.Path, LongEdgeFor(r), r.Kind);
         if (bmp is null)
         {
-            try { File.WriteAllBytes(failedMarker, []); } catch (IOException) { }
+            try { File.WriteAllBytes(failedMarker, []); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
             return null;
         }
         using var data = bmp.Encode(SKEncodedImageFormat.Jpeg, Math.Clamp(Quality, 1, 100));
         if (data is null) return null;
         var tmp = dest + "." + Environment.CurrentManagedThreadId + ".tmp";
         using (var fs = File.Create(tmp)) data.SaveTo(fs);
-        try { File.Move(tmp, dest, overwrite: true); }
-        catch (IOException) { try { File.Delete(tmp); } catch (IOException) { } }
+        // Identical files share a thumbnail (it's keyed by content hash), so another tile may have made this one
+        // meanwhile and may have it open. Keep whichever landed first: replacing an open file is "access denied"
+        // on Windows.
+        try
+        {
+            if (!File.Exists(dest)) File.Move(tmp, dest);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        finally
+        {
+            try { File.Delete(tmp); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
         return File.Exists(dest) ? dest : null;
     }
 

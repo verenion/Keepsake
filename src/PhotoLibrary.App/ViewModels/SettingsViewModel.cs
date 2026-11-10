@@ -51,6 +51,9 @@ public partial class SettingsViewModel : ViewModelBase
         ThumbQuality = State.Thumbs.Quality;
         Theme = ThemeOptions.FirstOrDefault(t => t.Key == Settings.Theme) ?? ThemeOptions[0];
         DateLayout = Settings.DateLayout;
+        VaultKdf = Settings.VaultKdf;
+        AutoLock = AutoLockOptions.FirstOrDefault(o => o.Minutes == Settings.VaultAutoLockMinutes) ?? AutoLockOptions[2];
+        RefreshVaultStrengths();
         TileSize = Settings.TileSize;
         foreach (var d in GpuDevices.List()) Gpus.Add(d);
         HasGpu = Gpus.Count > 0;
@@ -162,6 +165,7 @@ public partial class SettingsViewModel : ViewModelBase
 
     public void RefreshLibrary()
     {
+        RefreshVaultStrengths();
         HiddenCount = State.Db.CountHidden();
         HiddenText = HiddenCount == 0 ? "No items have been removed from the library."
             : HiddenCount == 1 ? "1 item was removed from the library and is kept out of imports. The file is still on disk."
@@ -339,6 +343,101 @@ public partial class SettingsViewModel : ViewModelBase
                 "Keepsake will close, install the update and reopen. Any scan, import or indexing in progress stops and resumes next time, and unlocked vaults lock.",
                 "Restart now")) return;
         _updater.ApplyAndRestart();
+    }
+
+    // ---- vault security
+
+    public PhotoLibrary.Core.Vault.KdfPreset[] KdfPresets { get; } = PhotoLibrary.Core.Vault.KdfPreset.All;
+
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(VaultKdfHint))]
+    public partial PhotoLibrary.Core.Vault.KdfPreset? VaultKdf { get; set; }
+
+    public string VaultKdfHint => VaultKdf?.Hint ?? "";
+
+    partial void OnVaultKdfChanged(PhotoLibrary.Core.Vault.KdfPreset? value)
+    {
+        KdfTestResult = null;
+        if (value is null || value == Settings.VaultKdf) return;
+        Settings.VaultKdf = value;
+        State.Albums.Kdf = value.Params;
+        RefreshVaultStrengths();
+    }
+
+    [ObservableProperty] public partial string? KdfTestResult { get; set; }
+    [ObservableProperty] public partial bool KdfTesting { get; set; }
+
+    /// <summary>Runs the chosen key derivation once, so the user sees what an unlock costs on this PC.</summary>
+    [RelayCommand]
+    private async Task TestKdf()
+    {
+        if (VaultKdf is not { } preset || KdfTesting) return;
+        KdfTesting = true;
+        KdfTestResult = "Testing…";
+        try
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            await Task.Run(() =>
+            {
+                var kek = PhotoLibrary.Core.Vault.VaultCrypto.DeriveKek("test password", PhotoLibrary.Core.Vault.VaultCrypto.NewSalt(), preset.Params);
+                System.Security.Cryptography.CryptographicOperations.ZeroMemory(kek);
+            });
+            KdfTestResult = $"{preset.Name}: an unlock takes about {watch.Elapsed.TotalSeconds:0.0} seconds on this PC.";
+        }
+        catch (OutOfMemoryException)
+        {
+            KdfTestResult = $"{preset.Name} needs more free memory than this PC has right now. Choose a lower setting.";
+        }
+        finally { KdfTesting = false; }
+    }
+
+    public sealed record AutoLockOption(int Minutes, string Label);
+
+    public AutoLockOption[] AutoLockOptions { get; } =
+    [
+        new(1, "After 1 minute without use"),
+        new(5, "After 5 minutes without use"),
+        new(10, "After 10 minutes without use"),
+        new(30, "After 30 minutes without use"),
+        new(60, "After 1 hour without use"),
+        new(0, "Only when I lock it or close Keepsake"),
+    ];
+
+    [ObservableProperty] public partial AutoLockOption? AutoLock { get; set; }
+
+    partial void OnAutoLockChanged(AutoLockOption? value)
+    {
+        if (value is null) return;
+        Settings.VaultAutoLockMinutes = value.Minutes;
+        _main.Vaults.IdleTimeout = value.Minutes > 0 ? TimeSpan.FromMinutes(value.Minutes) : null;
+    }
+
+    /// <summary>Each vault's current strength; read from its key file, no password needed.</summary>
+    public ObservableCollection<string> VaultStrengths { get; } = [];
+    [ObservableProperty] public partial bool HasVaults { get; set; }
+    [ObservableProperty] public partial bool VaultsBehind { get; set; }
+
+    private void RefreshVaultStrengths()
+    {
+        VaultStrengths.Clear();
+        var behind = false;
+        foreach (var album in State.Db.GetAlbums().Where(a => a.IsSecure))
+        {
+            try
+            {
+                var kf = PhotoLibrary.Core.Vault.VaultStore.ReadKeyFile(State.Albums.FolderFor(album));
+                var p = new PhotoLibrary.Core.Vault.KdfParams(kf.MemoryKiB, kf.Iterations, kf.Parallelism);
+                var name = PhotoLibrary.Core.Vault.KdfPreset.Matching(p)?.Name ?? "Custom";
+                var differs = p != Settings.VaultKdf.Params;
+                behind |= differs;
+                VaultStrengths.Add($"{album.Name}: {name} ({p.Describe()}){(differs ? "  ·  not the setting above" : "")}");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+            {
+                VaultStrengths.Add($"{album.Name}: key file can't be read ({ex.Message})");
+            }
+        }
+        HasVaults = VaultStrengths.Count > 0;
+        VaultsBehind = behind;
     }
 
     // ---- library folders
