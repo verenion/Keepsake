@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using PhotoLibrary.Core.Db;
 using PhotoLibrary.Core.Layout;
+using PhotoLibrary.Core.Pairs;
 using PhotoLibrary.Core.Scanning;
 
 namespace PhotoLibrary.Core.Organise;
@@ -47,10 +48,15 @@ public static partial class Organizer
     private static partial Regex DupMarkRegex();
 
     /// <summary>True when a library still has media Organise would file (_Undated counts as settled here).</summary>
-    public static bool NeedsOrganising(IEnumerable<MediaRecord> libraryRecords, FolderMap map) =>
-        libraryRecords.Any(r =>
+    public static bool NeedsOrganising(IEnumerable<MediaRecord> libraryRecords, FolderMap map)
+    {
+        // A companion goes wherever its photo goes; a Live Photo clip's own date can be a day out (UTC).
+        var records = libraryRecords as IReadOnlyCollection<MediaRecord> ?? libraryRecords.ToList();
+        var companions = FilePairs.Find(records).SelectMany(p => p.Companions).ToHashSet(ReferenceEqualityComparer.Instance);
+        return records.Any(r => !companions.Contains(r) &&
             !string.Equals(LibraryFolders.TopOf(map.Root, r.Path), LibraryFolders.Undated, StringComparison.OrdinalIgnoreCase)
             && !map.IsSettled(r, useMtime: false));
+    }
 
     public static OrganisePlan Plan(ScanResult scan, bool useMtime, FolderMap map)
     {
@@ -60,8 +66,22 @@ public static partial class Organizer
         var settled = new List<MediaRecord>();
         var todo = new List<MediaRecord>();
 
+        // Companions (RAW, Live Photo clip…) aren't filed on their own: they follow their photo and share its name.
+        var companionsOf = new Dictionary<MediaRecord, List<MediaRecord>>(ReferenceEqualityComparer.Instance);
+        var isCompanion = new HashSet<MediaRecord>(ReferenceEqualityComparer.Instance);
+        foreach (var p in FilePairs.Find(scan.Records))
+        {
+            companionsOf[p.Primary] = p.Companions;
+            isCompanion.UnionWith(p.Companions);
+        }
+        List<MediaRecord> CompanionsOf(MediaRecord r) => companionsOf.TryGetValue(r, out var c) ? c : [];
+
         foreach (var r in scan.Records)
-            (map.IsSettled(r, useMtime) ? settled : todo).Add(r);
+        {
+            if (isCompanion.Contains(r)) { alloc.Reserve(r.Path); continue; }
+            if (map.IsSettled(r, useMtime)) { settled.Add(r); settled.AddRange(CompanionsOf(r)); }
+            else todo.Add(r);
+        }
         foreach (var r in settled) alloc.Reserve(r.Path);
 
         var items = new List<OrganiseItem>();
@@ -86,17 +106,22 @@ public static partial class Organizer
                     blocked[name] = blocked.GetValueOrDefault(name) + 1;
                     continue;
                 }
-                dest = alloc.Claim(dated);
+                dest = dated;
                 action = OrganiseAction.Move;
             }
             else
             {
                 var top = rel.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
                 var sub = top == LibraryFolders.Undated ? Path.GetRelativePath(LibraryFolders.Undated, rel) : rel;
-                dest = alloc.Claim(Path.Combine(root, LibraryFolders.Undated, sub));
+                dest = Path.Combine(root, LibraryFolders.Undated, sub);
                 action = OrganiseAction.Undated;
             }
-            items.Add(new OrganiseItem(action, r, dest, source));
+            var companions = CompanionsOf(r);
+            var (primaryDest, companionDests) = alloc.ClaimGroup(dest, companions.Select(c => c.FileName).ToList());
+            items.Add(new OrganiseItem(action, r, primaryDest, source));
+            for (var c = 0; c < companions.Count; c++)
+                if (!Scanner.PathComparer.Equals(companions[c].Path, companionDests[c]))
+                    items.Add(new OrganiseItem(action, companions[c], companionDests[c], source));
         }
 
         return new OrganisePlan
@@ -247,6 +272,29 @@ public sealed class DestAllocator
     private readonly HashSet<string> _used = new(Scanner.PathComparer);
 
     public void Reserve(string path) => _used.Add(path);
+
+    /// <summary>
+    /// Claims a photo's destination plus its companions' beside it. They all keep a shared name, so a clash renames
+    /// the whole shot (<c>IMG_1_1.HEIC</c> + <c>IMG_1_1.MOV</c>) instead of splitting it up. With no companions this
+    /// is the same as <see cref="Claim"/>.
+    /// </summary>
+    public (string Primary, List<string> Companions) ClaimGroup(string primaryDest, IReadOnlyList<string> companionNames)
+    {
+        if (companionNames.Count == 0) return (Claim(primaryDest), []);
+        var dir = Path.GetDirectoryName(primaryDest)!;
+        var primaryName = Path.GetFileName(primaryDest);
+        var key = FilePairs.Key(primaryName);
+        var tails = new List<string> { FilePairs.Tail(primaryName) };
+        tails.AddRange(companionNames.Select(FilePairs.Tail));
+        for (var n = 0; ; n++)
+        {
+            var stem = n == 0 ? key : $"{key}_{n}";
+            var paths = tails.Select(t => Path.Combine(dir, stem + t)).ToList();
+            if (paths.Any(p => _used.Contains(p) || File.Exists(p))) continue;
+            foreach (var p in paths) _used.Add(p);
+            return (paths[0], paths.Skip(1).ToList());
+        }
+    }
 
     public string Claim(string dest)
     {

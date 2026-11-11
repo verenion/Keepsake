@@ -137,6 +137,7 @@ public partial class MainViewModel : ViewModelBase
         {
             var result = await State.Scanner.IndexTreeAsync(State.LibraryRoot, LibraryFolders.ExcludedFromIndex, true, NewProgress(), _scanCts.Token);
             State.Library = result.Records;
+            Core.Pairs.FilePairs.Refresh(State.Db, result.Records);
             NeedsOrganise = Organizer.NeedsOrganising(result.Records, State.Albums.Folders());
             UpdateNeedsFfmpeg();
             RefreshTree();
@@ -406,10 +407,12 @@ public partial class MainViewModel : ViewModelBase
     /// <summary>
     /// Takes photos out of the library. Soft removal hides the rows (the files stay, and are never re-imported);
     /// disk removal asks first, then sends the files to the Recycle Bin and drops the rows. Returns how many went.
+    /// A photo's paired files (its RAW, Live Photo clip…) go with it unless <paramref name="withCompanions"/> is false.
     /// </summary>
-    public async Task<int> RemoveAsync(IReadOnlyList<MediaRecord> records, bool fromDisk)
+    public async Task<int> RemoveAsync(IReadOnlyList<MediaRecord> records, bool fromDisk, bool withCompanions = true)
     {
         if (records.Count == 0) return 0;
+        if (withCompanions) records = State.Db.WithCompanions(records);
         var n = records.Count;
         var bytes = Formatting.Bytes(records.Sum(r => r.Size));
         var removed = new HashSet<long>();
@@ -466,6 +469,7 @@ public partial class MainViewModel : ViewModelBase
     {
         State.Ai.Forget(removed);
         State.Library.RemoveAll(r => removed.Contains(r.Id));
+        Core.Pairs.FilePairs.Refresh(State.Db, State.Library); // a RAW left behind by a removed copy shows on its own
         LibrarySummary = $"{State.Library.Count:N0} items · {Formatting.Bytes(State.Library.Sum(r => r.Size))}";
         foreach (var p in _selected.Where(p => removed.Contains(p.Record.Id)).ToList()) { p.IsSelected = false; _selected.Remove(p); }
         if (SelectedPhoto is { } sp && removed.Contains(sp.Record.Id)) SelectedPhoto = _selected.LastOrDefault();

@@ -48,6 +48,8 @@ public sealed class DuplicateFinder
         void Link(long a, long b, DuplicateLevel l, string reason)
         {
             if (!IncludeRawJpegPairs && Core.MediaKinds.IsRaw(byId[a].Path) != Core.MediaKinds.IsRaw(byId[b].Path)) return;
+            // Files of one shot (a photo and its RAW, or a Pixel portrait's two renderings) are meant to be together.
+            if (SameShot(byId[a], byId[b])) return;
             var key = a < b ? (a, b) : (b, a);
             if (edgeLevel.TryGetValue(key, out var existing) && existing.Level <= l) return;
             edgeLevel[key] = (l, reason);
@@ -157,6 +159,9 @@ public sealed class DuplicateFinder
     /// </summary>
     public static (bool IsRaw, long Pixels, long Size) Quality(MediaRecord r) =>
         (Core.MediaKinds.IsRaw(r.Path), (long)(r.Width ?? 0) * (r.Height ?? 0), r.Size);
+
+    private static bool SameShot(MediaRecord a, MediaRecord b) =>
+        a.PairOf == b.Id || b.PairOf == a.Id || (a.PairOf is { } pa && pa == b.PairOf);
 
     private static bool DatesAgree(MediaRecord a, MediaRecord b) =>
         a.Taken is { } ta && b.Taken is { } tb && Math.Abs((ta - tb).TotalHours) <= 26;

@@ -331,7 +331,7 @@ public partial class AiPanelViewModel : ViewModelBase
 
     private void ShowResults(IEnumerable<SearchResult> results, string header)
     {
-        var records = results.ToList();
+        var records = results.Where(r => !r.Record.IsCompanion).ToList(); // a RAW or clip shows as its photo
         foreach (var p in Results) p.ReleaseThumbnail();
         Results.Clear();
         foreach (var r in records) Results.Add(new PhotoViewModel(r.Record, _main, SelectInResults) { AtMs = r.AtMs });

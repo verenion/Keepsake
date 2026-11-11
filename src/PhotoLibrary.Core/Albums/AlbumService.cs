@@ -1,6 +1,7 @@
 using PhotoLibrary.Core.Db;
 using PhotoLibrary.Core.Layout;
 using PhotoLibrary.Core.Organise;
+using PhotoLibrary.Core.Pairs;
 using PhotoLibrary.Core.Scanning;
 using PhotoLibrary.Core.Vault;
 
@@ -77,6 +78,7 @@ public sealed class AlbumService(LibraryDb db, string libraryRoot)
 
     public AlbumChange Add(Album album, IReadOnlyList<MediaRecord> records)
     {
+        records = db.WithCompanions(records);
         var existing = db.GetAlbumItemIds(album.Id);
         var fresh = records.Where(r => !existing.Contains(r.Id)).ToList();
         if (!album.IsPhysical)
@@ -103,6 +105,7 @@ public sealed class AlbumService(LibraryDb db, string libraryRoot)
 
     public AlbumChange Remove(Album album, IReadOnlyList<MediaRecord> records)
     {
+        records = db.WithCompanions(records);
         db.RemoveFromAlbum(album.Id, records.Select(r => r.Id));
         if (!album.IsPhysical) return new AlbumChange(0, records.Count, 0, [], []);
         var (moved, relocated, errors) = MoveHome(records.Where(r => IsInFolder(album, r.Path)).ToList());
@@ -189,6 +192,7 @@ public sealed class AlbumService(LibraryDb db, string libraryRoot)
     public VaultChange AddToVault(Album album, byte[] key, IReadOnlyList<MediaRecord> records, IProgress<(int Done, int Total, string Name)>? progress = null, CancellationToken ct = default)
     {
         if (!album.IsSecure) throw new InvalidOperationException("Not a secure album.");
+        records = db.WithCompanions(records);
         var dir = FolderFor(album);
         var vaulted = new List<MediaRecord>();
         var errors = new List<string>();
@@ -247,11 +251,21 @@ public sealed class AlbumService(LibraryDb db, string libraryRoot)
         var map = Folders();
         var restored = new List<string>();
         var errors = new List<string>();
+        // A shot's files go back together, into the folder its photo's date picks.
+        var pairs = FilePairs.Find(items, i => i.Info.OriginalName, i => i.Info.Kind, i => i.Info.DurationMs);
+        var destOf = new Dictionary<VaultItem, string>(ReferenceEqualityComparer.Instance);
+        foreach (var p in pairs)
+        {
+            var (primary, companions) = alloc.ClaimGroup(map.HomeFor(p.Primary.Info.Taken, p.Primary.Info.OriginalName),
+                p.Companions.Select(c => c.Info.OriginalName).ToList());
+            destOf[p.Primary] = primary;
+            for (var c = 0; c < companions.Count; c++) destOf[p.Companions[c]] = companions[c];
+        }
         foreach (var item in items)
         {
             try
             {
-                var dest = alloc.Claim(map.HomeFor(item.Info.Taken, item.Info.OriginalName));
+                var dest = destOf.TryGetValue(item, out var d) ? d : alloc.Claim(map.HomeFor(item.Info.Taken, item.Info.OriginalName));
                 Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
                 VaultStore.Export(item, key, dest);
                 VaultStore.Delete(item);
@@ -392,30 +406,40 @@ public sealed class AlbumService(LibraryDb db, string libraryRoot)
 
     // ---- moving
 
-    private (int Moved, List<(long, string)> Relocated, List<(string Path, string Message)> Errors) MoveInto(List<MediaRecord> records, string folder)
-    {
-        var alloc = new DestAllocator();
-        return MoveEach(records, r => alloc.Claim(Path.Combine(folder, r.FileName)));
-    }
+    private (int Moved, List<(long, string)> Relocated, List<(string Path, string Message)> Errors) MoveInto(List<MediaRecord> records, string folder) =>
+        MoveEach(records, r => Path.Combine(folder, r.FileName));
 
     private (int Moved, List<(long, string)> Relocated, List<(string Path, string Message)> Errors) MoveHome(List<MediaRecord> records)
     {
-        var alloc = new DestAllocator();
         var map = Folders();
         var touched = new HashSet<string>(Scanner.PathComparer);
-        var result = MoveEach(records, r => { touched.Add(Path.GetDirectoryName(r.Path)!); return alloc.Claim(map.HomeFor(r.Taken, r.FileName)); });
+        var result = MoveEach(records, r => { touched.Add(Path.GetDirectoryName(r.Path)!); return map.HomeFor(r.Taken, r.FileName); });
         Organizer.PruneEmptyDirs(Root, touched, map.KeepWhenEmpty);
         return result;
     }
 
+    /// <summary>
+    /// Moves each record to where <paramref name="dest"/> wants it (renamed on a clash). Companions found among the
+    /// records (or in the database) go along with their photo under the same new name, wherever they are asked for.
+    /// </summary>
     private (int Moved, List<(long, string)> Relocated, List<(string Path, string Message)> Errors) MoveEach(List<MediaRecord> records, Func<MediaRecord, string> dest)
     {
         var moved = 0;
         var relocated = new List<(long, string)>();
         var errors = new List<(string, string)>();
+        records = db.WithCompanions(records);
+        var alloc = new DestAllocator();
+        var targets = new Dictionary<MediaRecord, string>(ReferenceEqualityComparer.Instance);
+        var pairs = FilePairs.Find(records);
+        foreach (var p in pairs)
+        {
+            var (primary, companions) = alloc.ClaimGroup(dest(p.Primary), p.Companions.Select(c => c.FileName).ToList());
+            targets[p.Primary] = primary;
+            for (var c = 0; c < p.Companions.Count; c++) targets[p.Companions[c]] = companions[c];
+        }
         foreach (var r in records)
         {
-            var target = dest(r);
+            var target = targets.TryGetValue(r, out var t) ? t : alloc.Claim(dest(r));
             if (Scanner.PathComparer.Equals(target, r.Path)) continue;
             try
             {

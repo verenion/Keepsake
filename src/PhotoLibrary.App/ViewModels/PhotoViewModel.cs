@@ -51,8 +51,9 @@ public partial class PhotoViewModel(MediaRecord record, MainViewModel main, Acti
     /// <summary>For a video found by search: the moment of the best-matching frame.</summary>
     public int? AtMs { get; init; }
 
-    public string Badge => IsVideo ? VideoBadge : Record.Extension.TrimStart('.').ToUpperInvariant() is var e && e is "JPG" or "JPEG" or "PNG" ? "" : Record.Extension.TrimStart('.').ToUpperInvariant();
+    public string Badge => IsVideo ? VideoBadge : Core.Pairs.FilePairs.Badge(Record.PairKind, Record.Extension) is { } pair ? pair : Record.Extension.TrimStart('.').ToUpperInvariant() is var e && e is "JPG" or "JPEG" or "PNG" ? "" : Record.Extension.TrimStart('.').ToUpperInvariant();
     public string ToolTipText => $"{Record.FileName}\n{Formatting.Taken(Record)}\n{Formatting.Summary(Record)}"
+                                 + (Record.PairKind != Core.Pairs.PairKind.None ? "\n" + Core.Pairs.FilePairs.Describe(Record.PairKind) : "")
                                  + (AlbumNames.Length > 0 ? $"\nIn: {AlbumNames}" : "");
 
     /// <summary>One coloured dot per album the photo is in, shown in the tile's corner.</summary>

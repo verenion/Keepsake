@@ -47,6 +47,9 @@ public sealed partial class LibraryDb : IDisposable
                 status TEXT NOT NULL, library_path TEXT, how TEXT);
             """);
         if (!ColumnExists("files", "hidden")) Exec("ALTER TABLE files ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0");
+        if (!ColumnExists("files", "pair_of")) Exec("ALTER TABLE files ADD COLUMN pair_of INTEGER");
+        if (!ColumnExists("files", "pair_kind")) Exec("ALTER TABLE files ADD COLUMN pair_kind INTEGER NOT NULL DEFAULT 0");
+        Exec("CREATE INDEX IF NOT EXISTS ix_files_pair_of ON files(pair_of)");
         EnsureAlbumSchema();
         EnsureAlbumColumns();
     }
@@ -104,7 +107,7 @@ public sealed partial class LibraryDb : IDisposable
     // ---- files
 
     private const string Cols = "id,path,in_library,size,mtime,sha256,kind,taken,taken_source,make,model,width,height," +
-                                "orientation,lat,lon,duration_ms,dhash,dhash_done,description,sidecar,meta_version,added,hidden";
+                                "orientation,lat,lon,duration_ms,dhash,dhash_done,description,sidecar,meta_version,added,hidden,pair_of,pair_kind";
 
     private static MediaRecord Map(SqliteDataReader r) => new()
     {
@@ -132,6 +135,8 @@ public sealed partial class LibraryDb : IDisposable
         MetaVersion = r.GetInt32(21),
         Added = DateTime.ParseExact(r.GetString(22), "O", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
         Hidden = r.GetInt64(23) != 0,
+        PairOf = r.IsDBNull(24) ? null : r.GetInt64(24),
+        PairKind = (Pairs.PairKind)r.GetInt32(25),
     };
 
     private static string Iso(DateTime d) => d.ToString("O", CultureInfo.InvariantCulture);
@@ -165,18 +170,76 @@ public sealed partial class LibraryDb : IDisposable
     public List<MediaRecord> GetLibrary() => Query("in_library=1");
 
     public List<MediaRecord> GetLibraryRange(DateTime fromInclusive, DateTime toExclusive) =>
-        Query("in_library=1 AND taken>=@a AND taken<@b ORDER BY taken, path", ("@a", Iso(fromInclusive)), ("@b", Iso(toExclusive)));
+        Query("in_library=1 AND pair_of IS NULL AND taken>=@a AND taken<@b ORDER BY taken, path", ("@a", Iso(fromInclusive)), ("@b", Iso(toExclusive)));
 
-    public List<MediaRecord> GetLibraryUndated() => Query("in_library=1 AND taken IS NULL ORDER BY path");
+    public List<MediaRecord> GetLibraryUndated() => Query("in_library=1 AND pair_of IS NULL AND taken IS NULL ORDER BY path");
 
     public List<MediaRecord> GetBySha(string sha) => Query("sha256=@s", ("@s", sha));
+
+    // ---- paired files (see FilePairs)
+
+    /// <summary>Every row that is a companion or has companions, with what is stored for it.</summary>
+    public Dictionary<long, (long? PairOf, Pairs.PairKind Kind)> GetPairing()
+    {
+        lock (_gate)
+        {
+            using var cmd = _conn.CreateCommand();
+            cmd.CommandText = "SELECT id, pair_of, pair_kind FROM files WHERE pair_of IS NOT NULL OR pair_kind<>0";
+            using var r = cmd.ExecuteReader();
+            var map = new Dictionary<long, (long?, Pairs.PairKind)>();
+            while (r.Read()) map[r.GetInt64(0)] = (r.IsDBNull(1) ? null : r.GetInt64(1), (Pairs.PairKind)r.GetInt32(2));
+            return map;
+        }
+    }
+
+    public void SetPairing(IEnumerable<(long Id, long? PairOf, Pairs.PairKind Kind)> rows)
+    {
+        lock (_gate)
+        {
+            using var tx = _conn.BeginTransaction();
+            using var cmd = _conn.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = "UPDATE files SET pair_of=@o, pair_kind=@k WHERE id=@id";
+            var id = cmd.Parameters.Add("@id", SqliteType.Integer);
+            var of = cmd.Parameters.Add("@o", SqliteType.Integer);
+            var kind = cmd.Parameters.Add("@k", SqliteType.Integer);
+            foreach (var row in rows)
+            {
+                id.Value = row.Id;
+                of.Value = (object?)row.PairOf ?? DBNull.Value;
+                kind.Value = (int)row.Kind;
+                cmd.ExecuteNonQuery();
+            }
+            tx.Commit();
+        }
+    }
+
+    /// <summary>The companion files (RAW, Live Photo clip…) of these photos.</summary>
+    public List<MediaRecord> GetCompanions(IEnumerable<long> primaryIds)
+    {
+        var list = new List<MediaRecord>();
+        foreach (var chunk in primaryIds.Distinct().Chunk(500))
+            list.AddRange(Query($"in_library=1 AND pair_of IN ({string.Join(",", chunk)})"));
+        return list;
+    }
+
+    /// <summary>These records plus any companions of theirs not already among them, so a shot is handled as a whole.</summary>
+    public List<MediaRecord> WithCompanions(IReadOnlyList<MediaRecord> records)
+    {
+        var list = records.ToList();
+        var have = list.Select(r => r.Id).ToHashSet();
+        var primaries = records.Where(r => r.PairKind != Pairs.PairKind.None).Select(r => r.Id).ToList();
+        if (primaries.Count == 0) return list;
+        list.AddRange(GetCompanions(primaries).Where(c => have.Add(c.Id)));
+        return list;
+    }
 
     public List<DayCount> GetDayCounts()
     {
         lock (_gate)
         {
             using var cmd = _conn.CreateCommand();
-            cmd.CommandText = "SELECT substr(taken,1,10), count(*) FROM files WHERE in_library=1 AND taken IS NOT NULL GROUP BY 1 ORDER BY 1";
+            cmd.CommandText = "SELECT substr(taken,1,10), count(*) FROM files WHERE in_library=1 AND pair_of IS NULL AND taken IS NOT NULL GROUP BY 1 ORDER BY 1";
             using var r = cmd.ExecuteReader();
             var list = new List<DayCount>();
             while (r.Read())
@@ -190,7 +253,7 @@ public sealed partial class LibraryDb : IDisposable
         lock (_gate)
         {
             using var cmd = _conn.CreateCommand();
-            cmd.CommandText = "SELECT count(*) FROM files WHERE in_library=1 AND taken IS NULL";
+            cmd.CommandText = "SELECT count(*) FROM files WHERE in_library=1 AND pair_of IS NULL AND taken IS NULL";
             return Convert.ToInt32(cmd.ExecuteScalar());
         }
     }

@@ -83,6 +83,24 @@ Right-click photos anywhere and choose *Add to album*. Each album has a name, co
 | **Folder** | A real folder at the top of the library. Adding a photo moves its file there; removing it moves it back. | One |
 | **Secure** | An encrypted vault with its own password. | One |
 
+### Paired files
+
+Some shots are saved as more than one file. Keepsake shows each of these shots as a single tile, with a badge such as `RAW+JPG` or `LIVE`:
+
+- **RAW + JPEG:** for example `DSC_0001.JPG` and `DSC_0001.NEF`.
+- **Pixel RAW:** `PXL_….RAW-01.COVER.jpg` and `PXL_….RAW-02.ORIGINAL.dng`.
+- **Pixel portrait:** the `COVER` and `ORIGINAL` versions.
+- **Live Photos:** for example `IMG_1234.HEIC` and `IMG_1234.MOV`.
+- **Pixel motion photos from Google Takeout:** `….MP.COVER.jpg` and its `….MP.COVER` clip.
+
+To count as one shot, the files must be in the same folder and share a name. A clip counts only if it's 10 seconds or shorter. Anything ambiguous, such as `IMG_1.JPG` with `IMG_1.PNG`, is left as separate files.
+
+The extra files go wherever the photo goes:
+- **Organise, Import, albums and vaults** move, copy, encrypt or restore them together. If a name is already taken, the whole shot is renamed (`IMG_1_1.HEIC` with `IMG_1_1.MOV`).
+- **Importing a RAW or clip on its own:** if its photo is already in the library, it's placed next to that photo.
+- **Removing or deleting a shot** from the grid removes all of its files.
+- **The Duplicates tab** removes only the files you tick, and never matches a file against another part of its own shot. When choosing which copy to keep, it prefers the copy that has its RAW or clip.
+
 ### Library folders
 
 Every top-level folder in the library is one of these:
@@ -167,13 +185,28 @@ common video formats (MP4, MOV, M4V, 3GP, AVI, MTS, MKV, WMV), including Pixel m
 
 ### Settings
 
-- Library folder.
-- Tile size, thumbnail resolution and quality.
-- AI model and GPU.
-- Search tuning, and video frame sampling.
-- Restoring removed photos.
-- A *Storage and indexes* card shows what Keepsake stores. Each row has a button to clear the thumbnail cache,
-  delete a model you're not using, delete an AI index or clear quality measurements.
+Settings is split into sections, listed down the left:
+
+| Section | What's in it |
+|---|---|
+| **General** | Library folder, restoring removed photos, the date folder layout, updates, and Advanced mode |
+| **Appearance** | Theme, tile size, thumbnail resolution and quality |
+| **Backup** | Backup folder and schedule |
+| **Security** | Vault password strength and auto-lock |
+| **AI** | AI model, video frame sampling, GPU and search tuning |
+| **Video and HEIC** | ffmpeg and HEIC support |
+| **Storage** | What Keepsake stores. Each row has a button to clear the thumbnail cache, delete a model you're not using, delete an AI index or clear quality measurements. |
+| **Database** | Shown only in Advanced mode; see below |
+
+**Database browser.** Switch on *Advanced mode* in General to add the Database section. It's a read-only look at what Keepsake has stored:
+- **Photos:** search by name, folder or id. For each photo it shows:
+  - every AI label, with the model that gave it and its confidence score;
+  - its search index entry, video frames, quality measurements, events, albums and paired files;
+  - its raw row in the files table.
+- **Labels:** every label a model has applied, with how many photos carry it. Pick a label to see those photos, most confident first. Double-click a photo to inspect it.
+- **Tables:** every table with its row count, plus a box for running SQL queries.
+
+The browser uses its own read-only database connection. A query that tries to change data fails, so nothing in this section can alter your library.
 
 ## Privacy
 

@@ -39,9 +39,33 @@ public partial class SettingsViewModel : ViewModelBase
     private AppSettings Settings => State.Settings;
     private AiEngine Ai => State.Ai;
 
+    // ---- sections and advanced mode
+
+    /// <summary>Index of the Database section in the side list; it is only shown in advanced mode.</summary>
+    public const int DatabaseSection = 7;
+
+    [ObservableProperty] public partial int SelectedSection { get; set; }
+
+    partial void OnSelectedSectionChanged(int value)
+    {
+        if (value == DatabaseSection) Database.EnsureLoaded();
+    }
+
+    public DatabaseViewModel Database { get; }
+
+    [ObservableProperty] public partial bool AdvancedMode { get; set; }
+
+    partial void OnAdvancedModeChanged(bool value)
+    {
+        Settings.AdvancedMode = value;
+        if (!value && SelectedSection == DatabaseSection) SelectedSection = 0;
+    }
+
     public SettingsViewModel(MainViewModel main)
     {
         _main = main;
+        Database = new DatabaseViewModel(main);
+        AdvancedMode = main.State.Settings.AdvancedMode;
         foreach (var spec in ClipModelCatalog.All) Models.Add(new ModelOption(spec));
         SearchMinZ = Settings.SearchMinZ;
         SearchMaxResults = Settings.SearchMaxResults;

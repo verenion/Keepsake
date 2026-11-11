@@ -194,6 +194,13 @@ public sealed class AppSettings
         set => _db.SetSetting("backup_last_summary", value ?? "");
     }
 
+    /// <summary>Shows tools for looking inside Keepsake's data, such as the database browser.</summary>
+    public bool AdvancedMode
+    {
+        get => _db.GetSetting("advanced_mode") == "1";
+        set => _db.SetSetting("advanced_mode", value ? "1" : "0");
+    }
+
     private float GetFloat(string key, float fallback) =>
         float.TryParse(_db.GetSetting(key), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : fallback;
 

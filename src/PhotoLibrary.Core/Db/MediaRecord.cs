@@ -31,6 +31,11 @@ public sealed class MediaRecord
     public string? SidecarPath { get; set; }
     public int MetaVersion { get; set; }
     public DateTime Added { get; set; }
+    /// <summary>For a companion file (a RAW, a Live Photo clip…): the photo it belongs to. Companions aren't shown on their own.</summary>
+    public long? PairOf { get; set; }
+    /// <summary>For a photo with companions: what kind they are.</summary>
+    public Pairs.PairKind PairKind { get; set; }
+    public bool IsCompanion => PairOf is not null;
 
     public string FileName => System.IO.Path.GetFileName(Path);
     public string Extension => System.IO.Path.GetExtension(Path);

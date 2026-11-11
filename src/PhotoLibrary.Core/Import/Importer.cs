@@ -1,6 +1,7 @@
 using PhotoLibrary.Core.Db;
 using PhotoLibrary.Core.Hashing;
 using PhotoLibrary.Core.Organise;
+using PhotoLibrary.Core.Pairs;
 using PhotoLibrary.Core.Scanning;
 
 namespace PhotoLibrary.Core.Import;
@@ -144,10 +145,47 @@ public sealed class Importer(LibraryDb db)
         var imported = 0;
         var log = new List<(string, string, string?, string?)>();
 
-        for (var i = 0; i < toImport.Count; i++)
+        // A shot's files (photo + RAW, Live Photo clip…) are copied together under one name. A companion whose
+        // photo is already in the library goes beside that copy.
+        var wanted = toImport.ToHashSet();
+        var itemOf = new Dictionary<MediaRecord, CheckItem>(ReferenceEqualityComparer.Instance);
+        foreach (var i in report.Items) itemOf[i.Record] = i;
+        var companionsOf = new Dictionary<CheckItem, List<CheckItem>>();
+        var primaryOf = new Dictionary<CheckItem, CheckItem>();
+        foreach (var p in FilePairs.Find(report.Items.Select(i => i.Record)))
+        {
+            var primary = itemOf[p.Primary];
+            companionsOf[primary] = p.Companions.Select(c => itemOf[c]).ToList();
+            foreach (var c in companionsOf[primary]) primaryOf[c] = primary;
+        }
+
+        var plan = new List<(CheckItem Item, string Dest)>();
+        foreach (var item in toImport)
+        {
+            var r = item.Record;
+            if (primaryOf.TryGetValue(item, out var owner))
+            {
+                if (wanted.Contains(owner)) continue; // copied with its photo below
+                if (owner.Match is { } m && m.InLibrary)
+                {
+                    plan.Add((item, alloc.Claim(Path.Combine(Path.GetDirectoryName(m.Path)!, FilePairs.CompanionName(m.FileName, r.FileName)))));
+                    continue;
+                }
+            }
+            // A date whose folder is an album (or awaiting a decision) is imported like an undated file.
+            var desired = r.Taken is { } t && map.DatedPath(t, r.FileName) is { } dated
+                ? dated
+                : Path.Combine(root, LibraryFolders.Undated, Path.GetFileName(report.Folder), Path.GetRelativePath(report.Folder, r.Path));
+            var companions = companionsOf.TryGetValue(item, out var cs) ? cs.Where(wanted.Contains).ToList() : [];
+            var (dest, companionDests) = alloc.ClaimGroup(desired, companions.Select(c => c.Record.FileName).ToList());
+            plan.Add((item, dest));
+            for (var c = 0; c < companions.Count; c++) plan.Add((companions[c], companionDests[c]));
+        }
+
+        for (var i = 0; i < plan.Count; i++)
         {
             ct.ThrowIfCancellationRequested();
-            var item = toImport[i];
+            var (item, dest) = plan[i];
             var r = item.Record;
             if (doneShas.Contains(r.Sha256))
             {
@@ -155,10 +193,6 @@ public sealed class Importer(LibraryDb db)
                 log.Add((r.Path, "skipped-duplicate", null, item.How));
                 continue;
             }
-            // A date whose folder is an album (or awaiting a decision) is imported like an undated file.
-            var dest = r.Taken is { } t && map.DatedPath(t, r.FileName) is { } dated
-                ? alloc.Claim(dated)
-                : alloc.Claim(Path.Combine(root, LibraryFolders.Undated, Path.GetFileName(report.Folder), Path.GetRelativePath(report.Folder, r.Path)));
             try
             {
                 await Task.Run(() => CopyPreserving(r.Path, dest), ct);
@@ -181,9 +215,10 @@ public sealed class Importer(LibraryDb db)
                 item.Error = ex.Message;
                 log.Add((r.Path, "error", dest, ex.Message));
             }
-            if (i % 20 == 0 || i == toImport.Count - 1)
-                progress?.Report(new ScanProgress("Copying", i + 1, toImport.Count, r.FileName));
+            if (i % 20 == 0 || i == plan.Count - 1)
+                progress?.Report(new ScanProgress("Copying", i + 1, plan.Count, r.FileName));
         }
+        FilePairs.Refresh(db);
         foreach (var item in report.Items.Where(i => i.ImportedTo is null && i.Error is null && !toImport.Contains(i)))
             log.Add((item.Record.Path, item.Status.ToString().ToLowerInvariant(), item.Match?.Path, item.How));
         db.AddImportItems(runId, log);

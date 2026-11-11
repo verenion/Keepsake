@@ -26,7 +26,8 @@ public partial class ReviewItemViewModel(PhotoViewModel photo, string caption, s
     public static string DescribeFile(MediaRecord r, string libraryRoot)
     {
         var dims = r.Width is { } w && r.Height is { } h ? $"{w}×{h}  ·  " : "";
-        return $"{dims}{Formatting.Bytes(r.Size)}\n{Path.GetRelativePath(libraryRoot, r.Path)}";
+        var pair = Core.Pairs.FilePairs.Describe(r.PairKind);
+        return $"{dims}{Formatting.Bytes(r.Size)}\n{Path.GetRelativePath(libraryRoot, r.Path)}" + (pair.Length > 0 ? "\n" + pair : "");
     }
 }
 

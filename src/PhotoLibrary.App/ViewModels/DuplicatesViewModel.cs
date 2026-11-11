@@ -121,7 +121,7 @@ public partial class DuplicatesViewModel : ViewModelBase
         foreach (var set in sets)
         {
             // Records come best quality first; prefer a copy that's in an album (see KeepChoice).
-            var keep = KeepChoice.Choose(set.Records, set.Level == DuplicateLevel.Identical, InAlbum);
+            var keep = KeepChoice.Choose(set.Records, set.Level == DuplicateLevel.Identical, InAlbum, r => r.PairKind != Core.Pairs.PairKind.None);
             var items = set.Records.Select((r, i) =>
             {
                 var photo = new PhotoViewModel(r, _main, SelectInGroups);
@@ -221,10 +221,11 @@ public partial class DuplicatesViewModel : ViewModelBase
     }
 
     [RelayCommand(CanExecute = nameof(HasMarked))]
-    private Task RemoveMarkedAsync() => _main.RemoveAsync(AllItems.Where(i => i.Marked).Select(i => i.Record).ToList(), fromDisk: false);
+    // Only what's ticked goes: removing one copy of a photo never takes the RAW or clip paired with it.
+    private Task RemoveMarkedAsync() => _main.RemoveAsync(AllItems.Where(i => i.Marked).Select(i => i.Record).ToList(), fromDisk: false, withCompanions: false);
 
     [RelayCommand(CanExecute = nameof(HasMarked))]
-    private Task DeleteMarkedAsync() => _main.RemoveAsync(AllItems.Where(i => i.Marked).Select(i => i.Record).ToList(), fromDisk: true);
+    private Task DeleteMarkedAsync() => _main.RemoveAsync(AllItems.Where(i => i.Marked).Select(i => i.Record).ToList(), fromDisk: true, withCompanions: false);
 
     private bool HasMarked() => MarkedCount > 0;
 

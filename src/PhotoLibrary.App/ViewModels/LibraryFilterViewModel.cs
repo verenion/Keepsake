@@ -141,7 +141,7 @@ public partial class LibraryFilterViewModel : ViewModelBase
             {
                 Photos => r.Kind == MediaKind.Image,
                 Videos => r.Kind == MediaKind.Video,
-                Raw => MediaKinds.IsRaw(r.Path),
+                Raw => MediaKinds.IsRaw(r.Path) || r.PairKind.HasFlag(Core.Pairs.PairKind.Raw),
                 _ => string.Equals(r.Extension.TrimStart('.'), Type, StringComparison.OrdinalIgnoreCase),
             };
             if (!ok) return false;

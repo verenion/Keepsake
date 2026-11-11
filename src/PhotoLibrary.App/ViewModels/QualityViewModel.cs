@@ -104,7 +104,7 @@ public partial class QualityViewModel : ViewModelBase
     {
         foreach (var i in Items) i.Photo.ReleaseThumbnail();
         Items.Clear();
-        var poor = Ai.PoorPhotos((float)Strictness);
+        var poor = Ai.PoorPhotos((float)Strictness).Where(p => !p.Record.IsCompanion).ToList(); // a RAW goes with its photo
         var root = _main.State.LibraryRoot;
         foreach (var p in poor.Take(600))
         {

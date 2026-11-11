@@ -69,7 +69,7 @@ public sealed partial class LibraryDb
 
     private const string AlbumSelect = """
         SELECT a.id, a.name, a.colour, a.kind, a.cover_file_id, a.created,
-               (SELECT count(*) FROM album_items i JOIN files f ON f.id=i.file_id WHERE i.album_id=a.id AND f.in_library=1),
+               (SELECT count(*) FROM album_items i JOIN files f ON f.id=i.file_id WHERE i.album_id=a.id AND f.in_library=1 AND f.pair_of IS NULL),
                a.vault_id, a.organise
         FROM albums a
         """;
@@ -155,7 +155,7 @@ public sealed partial class LibraryDb
 
     /// <summary>Members that are in the library, oldest first (undated last).</summary>
     public List<MediaRecord> GetAlbumItems(long albumId) =>
-        Query("in_library=1 AND id IN (SELECT file_id FROM album_items WHERE album_id=@a) ORDER BY taken IS NULL, taken, path", ("@a", albumId));
+        Query("in_library=1 AND pair_of IS NULL AND id IN (SELECT file_id FROM album_items WHERE album_id=@a) ORDER BY taken IS NULL, taken, path", ("@a", albumId));
 
     public HashSet<long> GetAlbumItemIds(long albumId)
     {

@@ -1,0 +1,253 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PhotoLibrary.App.ViewModels"
+             x:Class="PhotoLibrary.App.Views.DatabaseView"
+             x:DataType="vm:DatabaseViewModel">
+
+    <UserControl.Styles>
+        <!-- Undo the Settings side list's look for these page tabs. -->
+        <Style Selector="TabControl.pages TabItem">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Padding" Value="12,4" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="TextBlock.h">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Opacity" Value="0.7" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style Selector="TextBlock.mono">
+            <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="SelectableTextBlock.mono">
+            <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="TextBox.mono">
+            <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+    </UserControl.Styles>
+
+    <DockPanel Margin="20,12,20,12">
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4">
+            <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding RefreshCommand}" FontSize="12" VerticalAlignment="Center" />
+            <TextBlock Classes="hint" VerticalAlignment="Center"
+                       Text="A read-only look at Keepsake's database. Nothing here can change your library." />
+        </DockPanel>
+
+        <TabControl Classes="pages" SelectedIndex="{Binding SubTab, Mode=TwoWay}">
+
+            <!-- Photos: everything stored about one file -->
+            <TabItem Header="Photos">
+                <Grid ColumnDefinitions="360,Auto,*" Margin="0,8,0,0">
+                    <DockPanel Grid.Column="0">
+                        <TextBox DockPanel.Dock="Top" Text="{Binding PhotoSearch}" PlaceholderText="File name, folder or id — press Enter">
+                            <TextBox.KeyBindings>
+                                <KeyBinding Gesture="Enter" Command="{Binding SearchPhotosCommand}" />
+                            </TextBox.KeyBindings>
+                        </TextBox>
+                        <TextBlock DockPanel.Dock="Top" Classes="hint" Text="{Binding PhotoResultsText}" Margin="2,6" />
+                        <ListBox ItemsSource="{Binding PhotoResults}" SelectedItem="{Binding SelectedPhoto, Mode=TwoWay}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DatabaseViewModel+FileRow">
+                                    <StackPanel Spacing="1" ToolTip.Tip="{Binding Folder}">
+                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding Info}" FontSize="11" Opacity="0.65" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+
+                    <GridSplitter Grid.Column="1" Width="1" Margin="12,0" />
+
+                    <ScrollViewer Grid.Column="2">
+                        <StackPanel Spacing="12" Margin="4,0,8,16">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="Open file" Command="{Binding OpenSelectedFileCommand}" IsVisible="{Binding HasDetail}" FontSize="12" />
+                                <TextBlock Classes="h" Text="{Binding DetailHeader}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <StackPanel Spacing="12" IsVisible="{Binding HasDetail}">
+                                <Border HorizontalAlignment="Left" CornerRadius="8" ClipToBounds="True" MaxHeight="260" MaxWidth="420"
+                                        IsVisible="{Binding DetailThumbnail, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                    <Image Source="{Binding DetailThumbnail}" Stretch="Uniform" />
+                                </Border>
+
+                                <Border Classes="card">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Classes="h" Text="AI labels" />
+                                        <TextBlock Classes="hint" Text="{Binding DetailTagsText}" />
+                                        <ItemsControl ItemsSource="{Binding DetailTags}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:DatabaseViewModel+TagRow">
+                                                    <Grid ColumnDefinitions="220,60,130,*" Margin="0,2">
+                                                        <TextBlock Grid.Column="0" Text="{Binding Tag}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                                        <TextBlock Grid.Column="1" Classes="mono" Text="{Binding ScoreText}" VerticalAlignment="Center" />
+                                                        <Border Grid.Column="2" Height="6" CornerRadius="3" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                                Width="{Binding BarWidth}" Background="{DynamicResource SystemAccentColor}" />
+                                                        <TextBlock Grid.Column="3" Text="{Binding Model}" FontSize="11" Opacity="0.6" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Classes="card">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Classes="h" Text="Other AI data and albums" />
+                                        <ItemsControl ItemsSource="{Binding DetailAi}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:DatabaseViewModel+Field">
+                                                    <Grid ColumnDefinitions="140,*" Margin="0,2">
+                                                        <TextBlock Text="{Binding Name}" Opacity="0.7" />
+                                                        <SelectableTextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Classes="card">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Classes="h" Text="File record" />
+                                        <TextBlock Classes="hint" Text="The row in the files table, exactly as stored." />
+                                        <ItemsControl ItemsSource="{Binding DetailFile}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:DatabaseViewModel+Field">
+                                                    <Grid ColumnDefinitions="140,*" Margin="0,1">
+                                                        <TextBlock Classes="mono" Text="{Binding Name}" Opacity="0.7" />
+                                                        <SelectableTextBlock Grid.Column="1" Classes="mono" Text="{Binding Value}" TextWrapping="Wrap" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+
+            <!-- Labels: every AI label and the photos that carry it -->
+            <TabItem Header="Labels">
+                <Grid ColumnDefinitions="320,Auto,*" Margin="0,8,0,0">
+                    <DockPanel Grid.Column="0">
+                        <ComboBox DockPanel.Dock="Top" ItemsSource="{Binding TagModels}" SelectedItem="{Binding TagModel, Mode=TwoWay}"
+                                  HorizontalAlignment="Stretch" ToolTip.Tip="The AI model whose labels to show" />
+                        <TextBox DockPanel.Dock="Top" Text="{Binding TagFilter}" PlaceholderText="Filter labels" Margin="0,8,0,0" />
+                        <TextBlock DockPanel.Dock="Top" Classes="hint" Text="{Binding TagsText}" Margin="2,6" />
+                        <ListBox ItemsSource="{Binding Tags}" SelectedItem="{Binding SelectedTag, Mode=TwoWay}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DatabaseViewModel+TagCountRow">
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding Count, StringFormat='{}{0:N0}'}" Opacity="0.7" Margin="8,0,0,0" />
+                                        <TextBlock Text="{Binding Tag}" TextTrimming="CharacterEllipsis" />
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+
+                    <GridSplitter Grid.Column="1" Width="1" Margin="12,0" />
+
+                    <DockPanel Grid.Column="2">
+                        <TextBlock DockPanel.Dock="Top" Classes="hint" Text="{Binding TagPhotosText}" Margin="2,0,0,6" />
+                        <ListBox ItemsSource="{Binding TagPhotos}" SelectedItem="{Binding SelectedTagPhoto, Mode=TwoWay}" DoubleTapped="TagPhotoDoubleTapped">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DatabaseViewModel+FileRow">
+                                    <Grid ColumnDefinitions="64,*">
+                                        <TextBlock Classes="mono" Text="{Binding ScoreText}" VerticalAlignment="Center" />
+                                        <StackPanel Grid.Column="1" Spacing="1">
+                                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding Folder}" FontSize="11" Opacity="0.6" TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+                </Grid>
+            </TabItem>
+
+            <!-- Tables: raw rows and read-only SQL -->
+            <TabItem Header="Tables">
+                <Grid ColumnDefinitions="240,Auto,*" Margin="0,8,0,0">
+                    <ListBox Grid.Column="0" ItemsSource="{Binding Tables}" SelectedItem="{Binding SelectedTable, Mode=TwoWay}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:DatabaseViewModel+TableRow">
+                                <TextBlock Classes="mono" Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <GridSplitter Grid.Column="1" Width="1" Margin="12,0" />
+
+                    <DockPanel Grid.Column="2">
+                        <TextBox DockPanel.Dock="Top" Classes="mono" Text="{Binding Sql}" AcceptsReturn="True" TextWrapping="Wrap"
+                                 Height="96" VerticalContentAlignment="Top">
+                            <TextBox.KeyBindings>
+                                <KeyBinding Gesture="Ctrl+Enter" Command="{Binding RunQueryCommand}" />
+                            </TextBox.KeyBindings>
+                        </TextBox>
+                        <DockPanel DockPanel.Dock="Top" Margin="0,8">
+                            <Button DockPanel.Dock="Left" Classes="accent" Content="Run  (Ctrl+Enter)" Command="{Binding RunQueryCommand}"
+                                    IsEnabled="{Binding !QueryRunning}" Margin="0,0,12,0" />
+                            <TextBlock Classes="hint" Text="{Binding QueryStatus}" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <Border Classes="card" Padding="0">
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="8">
+                                    <ItemsControl ItemsSource="{Binding ResultColumns}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:DatabaseViewModel+Cell">
+                                                <TextBlock Classes="mono" Text="{Binding Text}" Width="{Binding Width}" FontWeight="SemiBold"
+                                                           TextTrimming="CharacterEllipsis" Padding="4,2" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <ItemsControl ItemsSource="{Binding ResultRows}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:DatabaseViewModel+ResultRow">
+                                                <ItemsControl ItemsSource="{Binding Cells}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Orientation="Horizontal" />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="vm:DatabaseViewModel+Cell">
+                                                            <TextBlock Classes="mono" Text="{Binding Text}" Width="{Binding Width}"
+                                                                       TextTrimming="CharacterEllipsis" Padding="4,1" ToolTip.Tip="{Binding Text}" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Border>
+                    </DockPanel>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</UserControl>
