@@ -30,6 +30,8 @@ public partial class MainViewModel : ViewModelBase
         Albums = new AlbumsViewModel(this);
         Duplicates = new DuplicatesViewModel(this);
         Quality = new QualityViewModel(this);
+        Map = new MapViewModel(this);
+        PhotosRemoved += Map.OnPhotosRemoved;
         Vaults.IdleTimeout = state.Settings.VaultAutoLockMinutes is > 0 and var m ? TimeSpan.FromMinutes(m) : null;
         Backup = new BackupViewModel(this);
         Settings = new SettingsViewModel(this);
@@ -41,11 +43,12 @@ public partial class MainViewModel : ViewModelBase
     public LibraryFilterViewModel Filter { get; }
     public DuplicatesViewModel Duplicates { get; }
     public QualityViewModel Quality { get; }
+    public MapViewModel Map { get; }
     public SettingsViewModel Settings { get; }
     public BackupViewModel Backup { get; }
 
-    /// <summary>Tab indices in MainWindow: Library, Albums, AI Tools, Duplicates, Quality, Settings.</summary>
-    public const int LibraryTab = 0, AlbumsTab = 1, AiTab = 2, DuplicatesTab = 3, QualityTab = 4, SettingsTab = 5;
+    /// <summary>Tab indices in MainWindow: Library, Albums, Map, AI Tools, Duplicates, Quality, Settings.</summary>
+    public const int LibraryTab = 0, AlbumsTab = 1, MapTab = 2, AiTab = 3, DuplicatesTab = 4, QualityTab = 5, SettingsTab = 6;
     [ObservableProperty] public partial int SelectedTab { get; set; }
 
     /// <summary>Keys of unlocked vaults (memory only).</summary>

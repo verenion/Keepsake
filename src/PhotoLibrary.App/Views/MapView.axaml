@@ -1,0 +1,79 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PhotoLibrary.App.ViewModels"
+             xmlns:views="using:PhotoLibrary.App.Views"
+             x:Class="PhotoLibrary.App.Views.MapView"
+             x:DataType="vm:MapViewModel">
+    <Grid ColumnDefinitions="260,4,*">
+
+        <!-- Places -->
+        <DockPanel Grid.Column="0" Background="{DynamicResource KsSidebarBrush}">
+            <StackPanel DockPanel.Dock="Top" Margin="12,10,12,6" Spacing="4">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="Everywhere" Command="{Binding ShowEverywhereCommand}" FontSize="12" Padding="8,3"
+                            ToolTip.Tip="Zoom out to every photo with a location" />
+                    <TextBlock Text="Places" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </DockPanel>
+                <TextBlock Text="{Binding SummaryText}" FontSize="12" Opacity="0.7" TextWrapping="Wrap" />
+            </StackPanel>
+            <TreeView ItemsSource="{Binding Places}" SelectedItem="{Binding SelectedPlace, Mode=TwoWay}" Background="Transparent" Padding="4">
+                <TreeView.ItemTemplate>
+                    <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="vm:PlaceNode">
+                        <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+                    </TreeDataTemplate>
+                </TreeView.ItemTemplate>
+                <TreeView.Styles>
+                    <Style Selector="TreeViewItem" x:DataType="vm:PlaceNode">
+                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                    </Style>
+                </TreeView.Styles>
+            </TreeView>
+        </DockPanel>
+
+        <GridSplitter Grid.Column="1" />
+
+        <!-- Map above, the picked photos below -->
+        <Grid Grid.Column="2" RowDefinitions="3*,4,2*">
+            <Panel Grid.Row="0">
+                <views:MapControl x:Name="Map" Points="{Binding Points}" FocusArea="{Binding Focus}" Highlight="{Binding Highlight}"
+                                  ClusterCommand="{Binding ShowClusterCommand}" Describe="{Binding Describe}" />
+                <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsLoading}" VerticalAlignment="Top" Height="3" />
+            </Panel>
+            <GridSplitter Grid.Row="1" ResizeDirection="Rows" />
+            <DockPanel Grid.Row="2">
+                <TextBlock DockPanel.Dock="Top" Text="{Binding PhotosHeader}" FontSize="15" FontWeight="SemiBold" Margin="12,8,12,4" TextTrimming="CharacterEllipsis" />
+                <ScrollViewer>
+                    <ItemsControl ItemsSource="{Binding Groups}" Margin="8,0,8,12">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <VirtualizingStackPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:DayGroupViewModel">
+                                <StackPanel Margin="0,4,0,10">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,0,0,4">
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding CountText}" Opacity="0.6" />
+                                    </StackPanel>
+                                    <ItemsControl ItemsSource="{Binding Photos}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:PhotoViewModel">
+                                                <views:PhotoTile />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
+        </Grid>
+    </Grid>
+</UserControl>

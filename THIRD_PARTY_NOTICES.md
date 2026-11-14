@@ -1,8 +1,8 @@
 # Third-party notices
 
 Keepsake is MIT licensed (see [LICENSE](LICENSE)). It builds on the packages below, pulled from NuGet at
-build time, and can download a few things at runtime when you ask it to. Nothing third-party is vendored into
-this repository.
+build time, and can download a few things at runtime when you ask it to. The only third-party material in this
+repository is the offline map data listed under "Bundled data".
 
 ## NuGet packages
 
@@ -19,6 +19,18 @@ this repository.
 | Microsoft.AI.DirectML | Microsoft Software License Terms (redistributable, Windows only) | GPU inference. Pulled in by the ONNX Runtime DirectML package; its licence permits distribution inside applications but not modification. See `LICENSE.txt` inside the package. |
 | xunit, xunit.runner.visualstudio | Apache-2.0 | Tests |
 | Microsoft.NET.Test.Sdk, coverlet.collector | MIT | Tests |
+
+## Bundled data
+
+The Map tab works offline from two compact data files in `src/PhotoLibrary.Core/Geo/Data`, built by
+`tools/geodata/build_geodata.py`:
+
+- **Country outlines**: [Natural Earth](https://www.naturalearthdata.com/) 1:50m Admin 0 – Countries (v5.1.2).
+  Natural Earth is in the public domain; no permission is needed, but the credit is appreciated.
+- **Town and region names**: [GeoNames](https://www.geonames.org/) `cities15000` and `admin1CodesASCII`, licensed
+  under [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/). The data has been
+  reduced to name, region, country, position and population and repackaged; it is otherwise unmodified. The Map
+  tab shows this attribution.
 
 ## Downloaded at runtime (never redistributed by this repository)
 

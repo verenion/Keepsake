@@ -63,6 +63,23 @@ or GPU, and sensitive photos can be locked away in encrypted vaults.
 - Capture dates come from, in order: camera EXIF or video metadata, a date and time in the file name, other EXIF
   dates, Google Takeout metadata, then a date-only file name.
 
+### Map
+
+The Map tab puts every photo that has GPS coordinates on a world map. It works entirely offline: nothing is fetched while you browse it.
+
+- **The map:** photos appear as circles with a count, which split apart as you zoom in.
+  - Scroll to zoom, drag to move around, and double-click a circle to zoom into it.
+  - Hover over a circle to see where it is.
+- **Places:** the list on the left breaks your photos down by country, then by town, with a count for each.
+  - Each photo gets the nearest town of 15,000 or more people within 50 km. Bigger places win over small ones close by, so a photo by the Eiffel Tower is "Paris" rather than one of its districts.
+  - Photos far from any town are grouped under their country.
+- **Photos:** clicking a circle or a place lists its photos below the map, by day. Click one to see it full size in the preview pane, or use *Open* to view it in its own app.
+- **Left out:**
+  - Paired files (a RAW or a Live Photo clip) appear as their photo.
+  - Photos with no GPS position, or with the invalid 0,0 position, are left off the map and counted separately.
+
+The map data is bundled with Keepsake: country outlines from [Natural Earth](https://www.naturalearthdata.com/) (public domain) and town names from [GeoNames](https://www.geonames.org/) (CC BY 4.0). Both are drawn by Keepsake itself, so the map is outlines and towns, not street level. `tools/geodata/build_geodata.py` rebuilds the data files from the original downloads.
+
 ### AI tools (on device)
 
 - Uses OpenAI's CLIP model running locally through ONNX Runtime. Six sizes are available, from a 150 MB

@@ -41,6 +41,7 @@ public partial class MainWindow : Window
         // Counts in the date tree go stale when photos are removed from another tab; refresh on return.
         if (vm.SelectedTab == MainViewModel.LibraryTab) vm.RefreshTreeIfStale();
         if (vm.SelectedTab == MainViewModel.AlbumsTab) vm.Albums.Reload();
+        if (vm.SelectedTab == MainViewModel.MapTab) _ = vm.Map.EnsureLoadedAsync();
         if (vm.SelectedTab == MainViewModel.SettingsTab) vm.Settings.RefreshLibrary();
     }
 

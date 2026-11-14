@@ -148,6 +148,11 @@
                 <views:AlbumsView DataContext="{Binding Albums}" />
             </TabItem>
 
+            <!-- Map tab -->
+            <TabItem Header="Map">
+                <views:MapView DataContext="{Binding Map}" />
+            </TabItem>
+
             <!-- AI Tools tab -->
             <TabItem Header="AI Tools">
                 <views:AiPanelView DataContext="{Binding Ai}" />

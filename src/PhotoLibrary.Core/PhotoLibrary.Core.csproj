@@ -14,4 +14,10 @@
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.153.1" />
   </ItemGroup>
 
+  <!-- Offline map data (see tools/geodata and THIRD_PARTY_NOTICES.md). WithCulture=false: otherwise MSBuild reads ".bin" as a language code and moves the files into a satellite assembly. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Geo\Data\countries.bin.gz" LogicalName="PhotoLibrary.Core.Geo.Data.countries.bin.gz" WithCulture="false" />
+    <EmbeddedResource Include="Geo\Data\places.bin.gz" LogicalName="PhotoLibrary.Core.Geo.Data.places.bin.gz" WithCulture="false" />
+  </ItemGroup>
+
 </Project>
